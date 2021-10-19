@@ -321,6 +321,13 @@ pub fn get_feature_flags() -> String {
         feature_flags.push_str("support_rigidmodel");
     }
 
+    #[cfg(feature = "rebuild_qt_lib")] {
+        if !feature_flags.is_empty() {
+            feature_flags.push_str(", ");
+        }
+        feature_flags.push_str("rebuild_qt_lib");
+    }
+
     if feature_flags.is_empty() {
         feature_flags.push_str("None");
     }

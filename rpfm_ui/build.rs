@@ -14,7 +14,9 @@ Build script for the RPFM UI.
 Here it goes all linking/cross-language compilation/platform-specific stuff that's needed in order to compile the RPFM UI.
 !*/
 
+#[cfg(feature = "rebuild_qt_lib")]
 use std::process::{Command, exit};
+#[cfg(feature = "rebuild_qt_lib")]
 use std::io::{stderr, stdout, Write};
 
 /// Windows Build Script.
@@ -32,6 +34,7 @@ fn main() {
     }
 
     // This compiles the custom widgets lib.
+    #[cfg(feature = "rebuild_qt_lib")]
     match Command::new("nmake").current_dir("qt_subclasses/").output() {
         Ok(output) => {
             stdout().write_all(&output.stdout).unwrap();
@@ -62,6 +65,7 @@ fn main() {
 fn main() {
     common_config();
 
+    #[cfg(feature = "rebuild_qt_lib")]
     // This compiles the custom widgets lib.
     match Command::new("make").current_dir("qt_subclasses/").output() {
         Ok(output) => {
@@ -86,6 +90,7 @@ fn main() {
 fn main() {
     common_config();
 
+    #[cfg(feature = "rebuild_qt_lib")]
     // This compiles the custom widgets lib.
     match Command::new("gmake").current_dir("qt_subclasses/").output() {
         Ok(output) => {
@@ -122,6 +127,7 @@ fn common_config() {
     println!("cargo:rerun-if-changed=./rpfm_ui/qt_subclasses/*");
 
     // This creates the makefile for the custom widget lib.
+    #[cfg(feature = "rebuild_qt_lib")] 
     match Command::new("qmake")
         .arg("-o")
         .arg("Makefile")
