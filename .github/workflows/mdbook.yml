@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master ]
     paths:
-      - /docs-src/**
+      - docs-src/**
   workflow_dispatch:
 
 env:
