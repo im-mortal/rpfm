@@ -1,0 +1,74 @@
+name: mdBook build
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - /docs-src/**
+  workflow_dispatch:
+
+env:
+  MDBOOK_VERSION: ^0.4.13
+  MDBOOK_OUTPUT: docs_src
+  CARGO_TERM_COLOR: always
+  GIT_COMMITTER_NAME: "github-actions[bot]"
+  GIT_COMMITTER_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - uses: actions-rs/toolchain@v1
+        id: toolchain
+        with:
+          toolchain: stable
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo_${{ steps.toolchain.outputs.cargo }}-${{ hashFiles('book.toml', format('{0}{1}', env.MDBOOK_OUTPUT, '/**') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo_${{ steps.toolchain.outputs.cargo }}
+
+      - name: Install mdBook
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: mdbook --vers "${{ env.MDBOOK_VERSION }}"
+
+      - name: Build mdBook
+        run: |
+          mdbook build
+
+      - name: Commit files
+        id: commit
+        run: |
+          git config --local user.email ${{ env.GIT_COMMITTER_EMAIL }}
+          git config --local user.name ${{ env.GIT_COMMITTER_NAME }}
+          git add -A ${{ env.MDBOOK_OUTPUT }}
+          git commit -m "Rebuild mdBook"
+
+      - name: Create a PR
+        id: pr
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ env.TOKEN }}
+          committer: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
+          branch: bot/mdbook
+          delete-branch: true
+          signoff: false
+          title: "[Bot] Rebuild mdBook"
+          body: |
+            **Update**:
+              - mdBook documentation
+          labels: |
+            documentation
+            automation
