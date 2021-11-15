@@ -3,6 +3,9 @@ name: Tests
 on:
   push:
     branches: [ master, develop ]
+    paths-ignore:
+      - 'docs_src/**'
+      - 'docs/**'
   pull_request:
     branches: [ master, develop ]
 
