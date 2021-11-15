@@ -135,14 +135,16 @@ Don't know. Don't have a Mac to compile to it and test. I tried, it compiles, bu
 
 --------------------------------------
 
-In case you just want to **contribute to these docs**, you just need to download this repo, install Rust, then move to the repo's folder and:
+In case you just want to **contribute to these docs**, you just need to download this repo, install Rust, then move to the repo's folder.
 
-```bash
-# To install mdbook.
-cargo install mdbook
+- Install mdBook:  
+  `cargo install mdbook`
+- Watch your changes to Markdown files updated in live mode:  
+  `mdbook watch`
+  
+  Press <kbd>Ctrl</kbd> <kbd>C</kbd> when done.
 
-# To build the docs and open them in a browser.
-mdbook build --open
-```
+- Do a final build and open the resulting mdBook in your browser:  
+  `mdbook build --open`
 
-These last instructions should work in any OS where you can install Rust on.
+These instructions should work on any OS where you can install Rust on.
