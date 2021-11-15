@@ -32,6 +32,7 @@ jobs:
 
       - name: Cache
         uses: actions/cache@v2
+        id: cache
         with:
           path: |
             ~/.cargo/bin/
@@ -42,10 +43,10 @@ jobs:
           key: ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}-mdbook-${{ hashFiles('book.toml', format('{0}{1}', env.MDBOOK_SRC, '/**')) }}
           restore-keys: |
             ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}-mdbook-
-            ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}
 
       - name: Install mdBook
         uses: actions-rs/cargo@v1
+        if: steps.cache.outputs.cache-hit != 'true'
         with:
           command: install
           args: mdbook --vers "${{ env.MDBOOK_VERSION }}"
