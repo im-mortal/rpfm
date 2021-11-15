@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v2
       
       - uses: actions-rs/toolchain@v1
+        id: toolchain
         with:
           toolchain: stable
 
@@ -28,9 +29,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }
 
       - name: Build rpfm-lib
         uses: actions-rs/cargo@v1
