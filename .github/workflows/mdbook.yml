@@ -1,0 +1,102 @@
+name: mdBook build
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'docs_src/**'
+  workflow_dispatch:
+
+env:
+  MDBOOK_OUTPUT: docs
+  CARGO_TERM_COLOR: always
+  CARGO_HOME: ~/.cargo
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
+  GIT_COMMITTER_NAME: "github-actions[bot]"
+  GIT_COMMITTER_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Expand env
+        run: |
+          echo "CARGO_HOME=${CARGO_HOME/#\~/$HOME}" >> $GITHUB_ENV
+
+      - uses: actions-rs/toolchain@v1
+        id: toolchain
+        with:
+          toolchain: stable
+
+      - name: Get mdBook latest version
+        id: mdbook
+        run: |
+          version=$(
+            curl -sL --fail https://crates.io/api/v1/crates/mdbook \
+            | jq -r '.versions|.[0].num'
+          )
+          echo "::set-output name=latest_version::${version}"
+          if [[ -z ${MDBOOK_VERSION} ]]; then
+            echo "MDBOOK_VERSION=${version}" >> $GITHUB_ENV
+          fi
+
+      - uses: actions/cache@v2
+        id: cache
+        with:
+          path: |
+            ${{ env.CARGO_HOME }}/bin/
+            ${{ env.CARGO_HOME }}/registry/index/
+            ${{ env.CARGO_HOME }}/registry/cache/
+            ${{ env.CARGO_HOME }}/git/db/
+            ${{ env.CARGO_TARGET_DIR }}/target/
+          key: ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}-mdbook_${{ env.MDBOOK_VERSION }}-${{ hashFiles('book.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}-mdbook_${{ env.MDBOOK_VERSION }}
+      
+      - name: Ensure cargo binaries are available
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: |
+          echo "${{ env.CARGO_HOME }}/bin" >> $GITHUB_PATH
+
+      - name: Install mdBook
+        uses: actions-rs/cargo@v1
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          command: install
+          args: mdbook --vers "${{ env.MDBOOK_VERSION }}"
+
+      - name: Build mdBook
+        run: |
+          mdbook build \
+            --dest-dir ${{ env.MDBOOK_OUTPUT }}
+
+      - name: Commit files
+        id: commit
+        run: |
+          git config --local user.email ${{ env.GIT_COMMITTER_EMAIL }}
+          git config --local user.name ${{ env.GIT_COMMITTER_NAME }}
+          git add -A ${{ env.MDBOOK_OUTPUT }}
+          git commit -m "Rebuild mdBook"
+
+      - name: Create a PR
+        id: pr
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GH_WORKFLOW_PUBLIC_REPO_PAC }}
+          committer: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
+          author: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
+          branch: bot/mdbook
+          delete-branch: true
+          signoff: false
+          title: "[Bot] Rebuild mdBook"
+          body: |
+            **Update**:
+              - Rebuild [mdBook documentation](../tree/master/${{ env.MDBOOK_OUTPUT }})
+
+            ---
+            [mdBook](https://rust-lang.github.io/mdBook) | [`mdbook build` reference](https://rust-lang.github.io/mdBook/cli/build.html)
+          labels: |
+            documentation
+            automation
