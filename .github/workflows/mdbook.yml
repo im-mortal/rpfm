@@ -7,6 +7,10 @@ on:
       - 'docs_src/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 env:
   MDBOOK_VERSION: ^0.4.13
   MDBOOK_SRC: docs_src
