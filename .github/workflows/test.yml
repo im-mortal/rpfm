@@ -8,6 +8,9 @@ on:
       - 'docs/**'
   pull_request:
     branches: [ master, develop ]
+    paths-ignore:
+      - 'docs_src/**'
+      - 'docs/**'
 
 env:
   CARGO_TERM_COLOR: always
