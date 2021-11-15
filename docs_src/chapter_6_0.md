@@ -1,4 +1,4 @@
-# Templates
+# [DEPRECIATED] Templates
 
 Templates allows you to bootstrap mods for specific purpouses. The basic idea is this: you want to create a new building? Then just load the building template, fill the parameters you're asked for, hit Ok, and you will have a working mod. A new unit? Same, fill some fields, hit ok, done.
 
