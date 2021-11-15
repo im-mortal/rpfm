@@ -5,10 +5,10 @@ Just in case someone wants to collaborate with code (who knows, maybe there is s
 ## Windows
 
 You need to download and install:
-- [**Windows SDK**](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk).
-- [**MSVC**](https://visualstudio.microsoft.com/ru/thank-you-downloading-visual-studio/?sku=community) (with C++ support from the Visual Studio installer).
-- [**Rust 1.56 with the MSVC toolchain**](https://www.rust-lang.org/tools/install) (or superior).
-- [**Craft**](https://community.kde.org/Guidelines_and_HOWTOs/Build_from_source/Windows) (from KDE).
+- [***Windows SDK***](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk).
+- ***MSVC*** (with C++ support from the Visual Studio installer).
+- ***Rust 1.56 with the MSVC toolchain*** (or superior).
+- ***Craft*** (from KDE).
 
 Once you have Craft installed, you need to install RPFM's dependencies:
 
@@ -116,19 +116,16 @@ to this:
 #include <KF5/KSyntaxHighlighting/Theme>
 ```
 
-Then just move to RPFM's source code and execute the following.
 
-- To build the executable without optimisations:
+Then just move to RPFM's source code and execute:
 ```bash
+# To build the executable without optimisations.
 cargo build
-```
-- To run the ui executable without optimisations (debug mode):
-```bash
-cargo run --bin rpfm_ui
-```
 
-- To build the executable with optimisations (release mode):
-```bash
+# To run the ui executable without optimisations (debug mode).
+cargo run --bin rpfm_ui
+
+# To build the executable with optimisations (release mode).
 cargo build --release
 ```
 
@@ -138,16 +135,14 @@ Don't know. Don't have a Mac to compile to it and test. I tried, it compiles, bu
 
 --------------------------------------
 
-In case you just want to **contribute to these docs**, you just need to download this repo, install Rust, then move to the repo's folder.
+In case you just want to **contribute to these docs**, you just need to download this repo, install Rust, then move to the repo's folder and:
 
-- Install mdBook:  
-  `cargo install mdbook`
-- Watch your changes to Markdown files updated in live mode:  
-  `mdbook watch`
-  
-  Press <kbd>Ctrl</kbd> <kbd>C</kbd> when done.
+```bash
+# To install mdbook.
+cargo install mdbook
 
-- Do a final build and open the resulting mdBook in your browser:  
-  `mdbook build --open`
+# To build the docs and open them in a browser.
+mdbook build --open
+```
 
-These instructions should work on any OS where you can install Rust on.
+These last instructions should work in any OS where you can install Rust on.
