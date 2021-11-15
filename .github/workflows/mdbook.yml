@@ -48,7 +48,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: mdbook --vers "${{ env.MDBOOK_VERSION }}"
+          args: mdbook --vers "${{ env.MDBOOK_VERSION }}" --force
 
       - name: Build mdBook
         run: |
