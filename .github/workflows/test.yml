@@ -31,7 +31,7 @@ jobs:
             target/
           key: ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }
+            ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}
 
       - name: Build rpfm-lib
         uses: actions-rs/cargo@v1
