@@ -34,7 +34,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo_${{ steps.toolchain.outputs.cargo }}-${{ hashFiles('book.toml', format('{0}{1}', env.MDBOOK_OUTPUT, '/**') }}
+          key: ${{ runner.os }}-cargo_${{ steps.toolchain.outputs.cargo }}-${{ hashFiles('book.toml', format('{0}{1}', env.MDBOOK_OUTPUT, '/**')) }}
           restore-keys: |
             ${{ runner.os }}-cargo_${{ steps.toolchain.outputs.cargo }}
 
