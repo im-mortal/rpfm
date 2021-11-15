@@ -65,7 +65,7 @@ jobs:
         id: pr
         uses: peter-evans/create-pull-request@v3
         with:
-          token: ${{ env.TOKEN }}
+          token: ${{ secrets.GH_WORKFLOW_PUBLIC_REPO_PAC }}
           committer: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
           branch: bot/mdbook
           delete-branch: true
