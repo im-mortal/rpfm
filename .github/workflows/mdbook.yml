@@ -39,8 +39,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}-${{ hashFiles('book.toml', format('{0}{1}', env.MDBOOK_SRC, '/**')) }}
+          key: ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}-mdbook-${{ hashFiles('book.toml', format('{0}{1}', env.MDBOOK_SRC, '/**')) }}
           restore-keys: |
+            ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}-mdbook-
             ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}
 
       - name: Install mdBook
