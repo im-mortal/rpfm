@@ -5,10 +5,10 @@ Just in case someone wants to collaborate with code (who knows, maybe there is s
 ## Windows
 
 You need to download and install:
-- [***Windows SDK***](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk).
-- ***MSVC*** (with C++ support from the Visual Studio installer).
-- ***Rust 1.56 with the MSVC toolchain*** (or superior).
-- ***Craft*** (from KDE).
+- [**Windows SDK**](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk).
+- [**MSVC**](https://visualstudio.microsoft.com/ru/thank-you-downloading-visual-studio/?sku=community) (with C++ support from the Visual Studio installer).
+- [**Rust 1.56 with the MSVC toolchain**](https://www.rust-lang.org/tools/install) (or superior).
+- [**Craft**](https://community.kde.org/Guidelines_and_HOWTOs/Build_from_source/Windows) (from KDE).
 
 Once you have Craft installed, you need to install RPFM's dependencies:
 
