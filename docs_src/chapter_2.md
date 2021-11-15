@@ -4,7 +4,7 @@
 
 After we start RPFM for the first time, we have to configure a couple of things.
 
-First, it should promt you to update your schemas. Hit yes. Schemas and some extra files used for particular features of RPFM, which we'll explain later. For now, just remember you should always have them up-to-date.
+First, it should promt you to update your schemas/templates. Hit yes. Schemas and templates some extra files used for some features of RPFM, which we'll explain later. For now, just remember you should always have them up-to-date.
 
 Then, we need to go to `PackFile/Preferences`, and the window above this will popup. It seems like a lot of new stuff to know, but it's really simple. First the paths:
 - `XXX folder`: These are the folders where your games are. Not where /data is, but **WHERE THE .EXE IS!!!** RPFM uses them for plenty of things, so remember to set them for the games you have.
