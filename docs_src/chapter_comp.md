@@ -116,16 +116,19 @@ to this:
 #include <KF5/KSyntaxHighlighting/Theme>
 ```
 
+Then just move to RPFM's source code and execute the following.
 
-Then just move to RPFM's source code and execute:
+- To build the executable without optimisations:
 ```bash
-# To build the executable without optimisations.
 cargo build
-
-# To run the ui executable without optimisations (debug mode).
+```
+- To run the ui executable without optimisations (debug mode):
+```bash
 cargo run --bin rpfm_ui
+```
 
-# To build the executable with optimisations (release mode).
+- To build the executable with optimisations (release mode):
+```bash
 cargo build --release
 ```
 
