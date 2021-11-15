@@ -16,4 +16,4 @@ Now, how it's modding done in modern Total War Games? By creating a `mod` PackFi
 
 But hey, isn't this familiar? If you have modded a modern Total War game, yep. RPFM it's a *complete reimplementation* in Rust and Qt5 of the old **PackFile Manager**, because PFM it's slow, buggy, and was unmaintained for more than half a year before someone picked it up. If you've used PFM before, you can see it has a similar UI, and most of the features are in the same place, or close by. It's done that way to make it ***easier to use for modders*** coming from PFM.
 
-So, you want to give it a try? Then read the **[Initial Configuration](./chapter_2.md)** section, as without it most of the *Advanced Features* RPFM has are disabled. And remember, you can always access this documentation in the `About` menu, by clicking on `Open Manual`.
+So, you want to give it a try? Then read the **![Initial Configuration](./chapter_2.md)** section, as without it most of the *Advanced Features* RPFM has are disabled. And remember, you can always access this documentation in the `About` menu, by clicking on `Open Manual`.
