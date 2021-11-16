@@ -7,15 +7,10 @@ on:
       - 'docs_src/**'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pull-requests: write
-
 env:
-  MDBOOK_SRC: docs_src
   MDBOOK_OUTPUT: docs
   CARGO_TERM_COLOR: always
-  CARGO_HOME: $HOME/.cargo
+  CARGO_HOME: ~/.cargo
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
   GIT_COMMITTER_NAME: "github-actions[bot]"
   GIT_COMMITTER_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
@@ -26,6 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       
+      - name: Expand env
+        run: |
+          echo "CARGO_HOME=${CARGO_HOME/#\~/$HOME}" >> $GITHUB_ENV
+
       - uses: actions-rs/toolchain@v1
         id: toolchain
         with:
@@ -43,8 +42,7 @@ jobs:
             echo "MDBOOK_VERSION=${version}" >> $GITHUB_ENV
           fi
 
-      - name: Cache
-        uses: actions/cache@v2
+      - uses: actions/cache@v2
         id: cache
         with:
           path: |
@@ -71,7 +69,8 @@ jobs:
 
       - name: Build mdBook
         run: |
-          mdbook build
+          mdbook build \
+            --dest-dir ${{ env.MDBOOK_OUTPUT }}
 
       - name: Commit files
         id: commit
@@ -87,13 +86,17 @@ jobs:
         with:
           token: ${{ secrets.GH_WORKFLOW_PUBLIC_REPO_PAC }}
           committer: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
+          author: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
           branch: bot/mdbook
           delete-branch: true
           signoff: false
           title: "[Bot] Rebuild mdBook"
           body: |
             **Update**:
-              - mdBook documentation
+              - Rebuild [mdBook documentation](../tree/master/${{ env.MDBOOK_OUTPUT }})
+
+            ---
+            [mdBook](https://rust-lang.github.io/mdBook) | [`mdbook build` reference](https://rust-lang.github.io/mdBook/cli/build.html)
           labels: |
             documentation
             automation
