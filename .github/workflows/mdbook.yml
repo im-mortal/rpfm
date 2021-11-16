@@ -82,21 +82,15 @@ jobs:
 
       - name: Create a PR
         id: pr
-        uses: peter-evans/create-pull-request@v3
+        uses: repo-sync/pull-request@v2.6.1
         with:
-          token: ${{ secrets.GH_WORKFLOW_PUBLIC_REPO_PAC }}
-          committer: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
-          author: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
-          branch: bot/mdbook
-          delete-branch: true
-          signoff: false
-          title: "[Bot] Rebuild mdBook"
-          body: |
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          destination_branch: master
+          pr_title: "[Bot] Rebuild mdBook"
+          pr_body: |
             **Update**:
               - Rebuild [mdBook documentation](../tree/master/${{ env.MDBOOK_OUTPUT }})
 
             ---
             [mdBook](https://rust-lang.github.io/mdBook) | [`mdbook build` reference](https://rust-lang.github.io/mdBook/cli/build.html)
-          labels: |
-            documentation
-            automation
+          pr_label: documentation,automation
