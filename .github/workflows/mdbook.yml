@@ -86,7 +86,7 @@ jobs:
             <<< "${{ hashFiles( format('{0}{1}', env.MDBOOK_OUTPUT, '/**') ) }}"
           )"
           git checkout -b ${new_branch}
-          git add -A ${{ env.MDBOOK_OUTPUT }}
+          git add ${{ env.MDBOOK_OUTPUT }}
           git commit -m "Rebuild mdBook"
           git push -u origin ${new_branch}
           echo "::set-output name=branch::${new_branch}"
