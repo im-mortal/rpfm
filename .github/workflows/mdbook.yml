@@ -77,14 +77,19 @@ jobs:
         run: |
           git config --local user.email ${{ env.GIT_COMMITTER_EMAIL }}
           git config --local user.name ${{ env.GIT_COMMITTER_NAME }}
+          new_branch="bot/mdbook-${${{ hashFiles( format('{0}{1}', env.MDBOOK_OUTPUT, '/**') ) }}:0:7}"
+          git checkout -b ${new_branch}
           git add -A ${{ env.MDBOOK_OUTPUT }}
           git commit -m "Rebuild mdBook"
+          git push -u origin ${new_branch}
+          echo "::set-output name=branch::${new_branch}"
 
       - name: Create a PR
         id: pr
         uses: repo-sync/pull-request@v2.6.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          source_branch: ${{ steps.commit.outputs.branch }}
           destination_branch: master
           pr_title: "[Bot] Rebuild mdBook"
           pr_body: |
