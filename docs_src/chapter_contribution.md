@@ -71,21 +71,17 @@ craft -i breeze-icons
   ```
 
 - Then, you also need to edit these two files:
-```bash
-/usr/include/KF5/KTextEditor/ktexteditor/editor.h
-/usr/include/KF5/KTextEditor/ktexteditor/view.h
+  - `/usr/include/KF5/KTextEditor/ktexteditor/editor.h`
+  - `/usr/include/KF5/KTextEditor/ktexteditor/view.h`
+
+  Change the following include in each:
+
+```diff
+- #include <KSyntaxHighlighting/Theme>
++ #include <KF5/KSyntaxHighlighting/Theme>
 ```
 
-You have to open them, and change the following include:
-```
-#include <KSyntaxHighlighting/Theme>
-```
-to this:
-```
-#include <KF5/KSyntaxHighlighting/Theme>
-```
-
-Now you can open craft, move to RPFM's source code folder and call from that terminal:
+Now you can open Craft, move to RPFM source code folder and call from that terminal:
 
 ```bash
 # To build the executable without optimisations.
@@ -111,22 +107,19 @@ You need to install the following packages on your distro:
 - **xz**
 - **p7zip**
 
-If you use arch or derivates, you also need to edit these two files:
-```bash
-/usr/include/KF5/KTextEditor/ktexteditor/editor.h
-/usr/include/KF5/KTextEditor/ktexteditor/view.h
+If you use arch or its derivatives, you also need to edit these two files:
+
+- `/usr/include/KF5/KTextEditor/ktexteditor/editor.h`
+- `/usr/include/KF5/KTextEditor/ktexteditor/view.h`
+
+  Change the following include in each:
+
+```diff
+- #include <KSyntaxHighlighting/Theme>
++ #include <KF5/KSyntaxHighlighting/Theme>
 ```
 
-You have to open them, and change the following include:
-```
-#include <KSyntaxHighlighting/Theme>
-```
-to this:
-```
-#include <KF5/KSyntaxHighlighting/Theme>
-```
-
-Then just move to RPFM's source code and execute the following.
+Then move to RPFM source code (`cd path/to/rpfm`) and execute the following.
 
 - To build the executable without optimisations:  
   `cargo build`
@@ -164,7 +157,7 @@ Once done, commit your changes to `docs_src` and push them to your RPFM fork.
 
 A [Pull Request](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-a-pull-request) (PR) is the final step in producing a fork of someone else's project, and arguably the most important. If you've made a change to  the source code or the documentation that you feel would benefit the community as a whole, you should definitely consider contributing back.
 
-To do so, head on over to the repository on GitHub where your cloned project lives. In this case, it would be at `https://www.github.com/<your_username>/rpfm`. You'll see a banner indicating that your branch is one commit ahead of `Frodo45127:master`. Click **Contribute** and then **Open a pull request**. 
+To do so, head on over to the repository on GitHub where your cloned project lives. In this case, it would be at `https://www.github.com/<your_username>/rpfm`. You'll see a banner indicating that your branch is one commit ahead of `Frodo45127:master`. Click **Contribute** and then **Open a pull request**.
 
 GitHub will bring you to a page where you can enter a title and a description of your changes. It's important to provide as much useful information and a rationale for why you're making this pull request in the first place. The project owner needs to be able to determine whether your change is as useful to everyone as you think it is. Finally, click **Create pull request**.
 
