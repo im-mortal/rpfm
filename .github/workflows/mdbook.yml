@@ -52,7 +52,7 @@ jobs:
             ${{ env.CARGO_HOME }}/registry/index/
             ${{ env.CARGO_HOME }}/registry/cache/
             ${{ env.CARGO_HOME }}/git/db/
-            ${{ CARGO_TARGET_DIR }}/target/
+            ${{ env.CARGO_TARGET_DIR }}/target/
           key: ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}-mdbook_${{ env.MDBOOK_VERSION }}-${{ hashFiles('book.toml') }}
           restore-keys: |
             ${{ runner.os }}-rustc_${{ steps.toolchain.outputs.rustc_hash }}-mdbook_${{ env.MDBOOK_VERSION }}
