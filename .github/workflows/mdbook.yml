@@ -12,7 +12,6 @@ permissions:
   pull-requests: write
 
 env:
-  MDBOOK_SRC: docs_src
   MDBOOK_OUTPUT: docs
   CARGO_TERM_COLOR: always
   CARGO_HOME: ~/.cargo
@@ -74,7 +73,8 @@ jobs:
 
       - name: Build mdBook
         run: |
-          mdbook build
+          mdbook build \
+            --dest-dir ${{ env.MDBOOK_OUTPUT }}
 
       - name: Commit files
         id: commit
@@ -90,13 +90,17 @@ jobs:
         with:
           token: ${{ secrets.GH_WORKFLOW_PUBLIC_REPO_PAC }}
           committer: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
+          author: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
           branch: bot/mdbook
           delete-branch: true
           signoff: false
           title: "[Bot] Rebuild mdBook"
           body: |
             **Update**:
-              - mdBook documentation
+              - Rebuild [mdBook documentation](../tree/master/${{ env.MDBOOK_OUTPUT }})
+
+            ---
+            [mdBook](https://rust-lang.github.io/mdBook) | [`mdbook build` reference](https://rust-lang.github.io/mdBook/cli/build.html)
           labels: |
             documentation
             automation
