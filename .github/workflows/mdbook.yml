@@ -23,6 +23,7 @@ jobs:
       
       - name: Expand env
         run: |
+          # GitHub won't expand tilde or other shell special characters within env map above
           echo "CARGO_HOME=${CARGO_HOME/#\~/$HOME}" >> $GITHUB_ENV
 
       - uses: actions-rs/toolchain@v1
@@ -33,11 +34,14 @@ jobs:
       - name: Get mdBook latest version
         id: mdbook
         run: |
+          # Here we're using crates.io API to get version number of the latest package release
           version=$(
             curl -sL --fail https://crates.io/api/v1/crates/mdbook \
             | jq -r '.versions|.[0].num'
           )
           echo "::set-output name=latest_version::${version}"
+
+          # Define MDBOOK_VERSION if not already set
           if [[ -z ${MDBOOK_VERSION} ]]; then
             echo "MDBOOK_VERSION=${version}" >> $GITHUB_ENV
           fi
@@ -77,26 +81,28 @@ jobs:
         run: |
           git config --local user.email ${{ env.GIT_COMMITTER_EMAIL }}
           git config --local user.name ${{ env.GIT_COMMITTER_NAME }}
-          git add -A ${{ env.MDBOOK_OUTPUT }}
+          new_branch="bot/mdbook-$(
+            cut -c1-7 \
+            <<< "${{ hashFiles( format('{0}{1}', env.MDBOOK_OUTPUT, '/**') ) }}"
+          )"
+          git checkout -b ${new_branch}
+          git add ${{ env.MDBOOK_OUTPUT }}
           git commit -m "Rebuild mdBook"
+          git push -u origin ${new_branch}
+          echo "::set-output name=branch::${new_branch}"
 
       - name: Create a PR
         id: pr
-        uses: peter-evans/create-pull-request@v3
+        uses: repo-sync/pull-request@v2.6.1
         with:
-          token: ${{ secrets.GH_WORKFLOW_PUBLIC_REPO_PAC }}
-          committer: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
-          author: ${{ format( '{0} <{1}>', env.GIT_COMMITTER_NAME, env.GIT_COMMITTER_EMAIL) }}
-          branch: bot/mdbook
-          delete-branch: true
-          signoff: false
-          title: "[Bot] Rebuild mdBook"
-          body: |
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          source_branch: ${{ steps.commit.outputs.branch }}
+          destination_branch: master
+          pr_title: "[Bot] Rebuild mdBook"
+          pr_body: |
             **Update**:
               - Rebuild [mdBook documentation](../tree/master/${{ env.MDBOOK_OUTPUT }})
 
             ---
-            [mdBook](https://rust-lang.github.io/mdBook) | [`mdbook build` reference](https://rust-lang.github.io/mdBook/cli/build.html)
-          labels: |
-            documentation
-            automation
+            [mdBook](https://rust-lang.github.io/mdBook) | [\`mdbook build\` reference](https://rust-lang.github.io/mdBook/cli/build.html)
+          pr_label: documentation,automation
