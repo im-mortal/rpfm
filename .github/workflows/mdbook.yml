@@ -97,5 +97,5 @@ jobs:
               - Rebuild [mdBook documentation](../tree/master/${{ env.MDBOOK_OUTPUT }})
 
             ---
-            [mdBook](https://rust-lang.github.io/mdBook) | [`mdbook build` reference](https://rust-lang.github.io/mdBook/cli/build.html)
+            [mdBook](https://rust-lang.github.io/mdBook) | [\`mdbook build\` reference](https://rust-lang.github.io/mdBook/cli/build.html)
           pr_label: documentation,automation
