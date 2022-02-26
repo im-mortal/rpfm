@@ -753,7 +753,7 @@ impl Display for ErrorKind {
             ErrorKind::RonSerializerError => write!(f, "<p>This should never happen.</p>"),
             ErrorKind::RonDeserializerError => write!(f, "<p>This should never happen.</p>"),
             ErrorKind::XMLDeserializerError => write!(f, "<p>This should never happen.</p>"),
-            ErrorKind::BincodeSerializerError => write!(f, "<p>This should never happen.</p>"),
+            ErrorKind::BincodeSerializerError => write!(f, "<p>Error while reading or writing a bincoded file. This means the file is not of the format we expected.</p>"),
             ErrorKind::JsonErrorSyntax => write!(f, "<p>Error while trying to read JSON data:</p><p>Invalid syntax found.</p>"),
             ErrorKind::JsonErrorData => write!(f, "<p>Error while trying to read JSON data:</p><p>Semantically incorrect data found.</p>"),
             ErrorKind::JsonErrorEOF => write!(f,"<p>Error while trying to read JSON data:</p><p>Unexpected EOF found.</p>"),
@@ -770,7 +770,7 @@ impl Display for ErrorKind {
             ErrorKind::InitializingLoggerError => write!(f, "<p>Error while trying to initialize the logger.</p>"),
             //ErrorKind::ParsingLongIntegerError => write!(f, "<p>Error while trying to parse a String as a Long Integer.</p>"),
             ErrorKind::NotABooleanValue => write!(f, "<p>Error while trying to parse something as a bool.</p>"),
-            ErrorKind::DependenciesCacheNotGeneratedorOutOfDate => write!(f, "<p>The dependencies cache for the Game Selected is either missing or outdated. Please, re-generate it and try again.</p>"),
+            ErrorKind::DependenciesCacheNotGeneratedorOutOfDate => write!(f, "<p>The dependencies cache for the Game Selected is either missing, outdated, or it was generated without the Assembly Kit. Please, re-generate it and try again.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
@@ -1143,6 +1143,13 @@ impl From<toml::ser::Error> for Error {
 /// Implementation to create an `Error` from a `serde_xml_rs::Error`.
 impl From<serde_xml_rs::Error> for Error {
     fn from(_: serde_xml_rs::Error) -> Self {
+        Self::from(ErrorKind::XMLDeserializerError)
+    }
+}
+
+/// Implementation to create an `Error` from a `quick_xml::DeError`.
+impl From<quick_xml::DeError> for Error {
+    fn from(_: quick_xml::DeError) -> Self {
         Self::from(ErrorKind::XMLDeserializerError)
     }
 }

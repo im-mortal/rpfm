@@ -77,7 +77,7 @@ use std::{fmt, fmt::Display};
 use std::io::{BufReader, Write};
 use std::process::Command as SystemCommand;
 
-use rpfm_error::{ErrorKind, Result};
+use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::assembly_kit::localisable_fields::RawLocalisableField;
 use crate::assembly_kit::table_definition::{RawDefinition, RawField};
@@ -575,6 +575,23 @@ impl Schema {
         Ok(())
     }
 
+    /// This function exports all the schema files from the `schemas/` folder to `.xml`.
+    ///
+    /// For compatibility purposes.
+    pub fn export_to_xml() -> Result<()> {
+        for schema_file in SUPPORTED_GAMES.get_games().iter().map(|x| x.get_schema_name()) {
+            let schema = Schema::load(schema_file)?;
+
+            let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
+            file_path.push(schema_file);
+            file_path.set_extension("xml");
+
+            let mut file = File::create(&file_path)?;
+            file.write_all(quick_xml::se::to_string(&schema)?.as_bytes())?;
+        }
+        Ok(())
+    }
+
     /// This function allow us to update all Schemas from any legacy version into the current one.
     ///
     /// NOTE FOR DEV: If you make a new Schema Version, add its update function here.
@@ -957,6 +974,14 @@ impl Definition {
             else { a.get_ca_order().cmp(&b.get_ca_order()) }
         });
         fields
+    }
+
+    /// This function returns the position of a column in a definition, or an error if the column is not found.
+    pub fn get_column_position_by_name(&self, column_name: &str) -> Result<usize> {
+        self.get_fields_processed()
+            .iter()
+            .position(|x| x.get_name() == column_name)
+            .ok_or_else(|| Error::from(ErrorKind::ColumnNotFoundInTable(column_name.to_owned())))
     }
 
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.

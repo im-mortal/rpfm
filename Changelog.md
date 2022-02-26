@@ -6,6 +6,32 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.6.6]
+### Added
+- Implemented Row Counter for tables.
+- Implemented `Disable PackedFile Previews` setting.
+- Implemented `Variant Editor` subtool (within `Unit Editor`).
+
+### Changed
+- Tools now require you to generate the dependencies cache with the assembly kit files included.
+- Optimizer now require you to generate the dependencies cache with the assembly kit files included.
+
+### Fixed
+- Fixed multiple issues related with Arch PKGBUILD and UI files.
+- Fixed `Copy Unit` button not working on the Unit Editor.
+- Fixed a number of minor issues on the Unit Editor.
+- Fixed CTD when merging tables with special symbols on their name.
+- Fixed CTD when opening a PackFile from a submenu, then quickly opening that submenu again.
+- Fixed -A option on the CLI not working as expected.
+
+## [2.6.5]
+### Added
+- RPFM CLI can now export schemas to XML.
+
+### Changed
+- Replaced hashing dependencies with a more performance-friendly option.
+- Dependencies Cache load error is now more... less horrifing.
+
 ## [2.6.4]
 ### Changed
 - Optimizer now also removes ANY unchanged file (relative to Parent/Vanilla Packs).
@@ -553,8 +579,10 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.4...HEAD
-[2.6.3]: https://github.com/Frodo45127/rpfm/compare/v2.6.3...v2.6.4
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.6...HEAD
+[2.6.6]: https://github.com/Frodo45127/rpfm/compare/v2.6.5...v2.6.6
+[2.6.5]: https://github.com/Frodo45127/rpfm/compare/v2.6.4...v2.6.5
+[2.6.4]: https://github.com/Frodo45127/rpfm/compare/v2.6.3...v2.6.4
 [2.6.3]: https://github.com/Frodo45127/rpfm/compare/v2.6.2...v2.6.3
 [2.6.2]: https://github.com/Frodo45127/rpfm/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/Frodo45127/rpfm/compare/v2.6.0...v2.6.1

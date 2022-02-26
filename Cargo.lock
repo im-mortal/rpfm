@@ -1617,6 +1617,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8533f14c8382aaad0d592c812ac3b826162128b65662331e1127b45c3d18536b"
+dependencies = [
+ "memchr",
+ "serde",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1840,14 +1850,14 @@ dependencies = [
 
 [[package]]
 name = "rpfm"
-version = "2.6.4"
+version = "2.6.6"
 dependencies = [
  "winres",
 ]
 
 [[package]]
 name = "rpfm_cli"
-version = "2.6.4"
+version = "2.6.6"
 dependencies = [
  "bytesize",
  "clap",
@@ -1863,7 +1873,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_error"
-version = "2.6.4"
+version = "2.6.6"
 dependencies = [
  "bincode",
  "csv",
@@ -1873,6 +1883,7 @@ dependencies = [
  "git2",
  "lazy_static",
  "log",
+ "quick-xml 0.22.0",
  "ron",
  "self_update",
  "serde",
@@ -1885,7 +1896,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "2.6.4"
+version = "2.6.6"
 dependencies = [
  "backtrace",
  "bincode",
@@ -1906,6 +1917,7 @@ dependencies = [
  "log",
  "os_info",
  "pelite",
+ "quick-xml 0.22.0",
  "rayon",
  "regex",
  "reqwest",
@@ -1929,7 +1941,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_macros"
-version = "2.6.4"
+version = "2.6.6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1938,7 +1950,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_mod_checker"
-version = "2.6.4"
+version = "2.6.6"
 dependencies = [
  "open",
  "rpfm_error",
@@ -1948,7 +1960,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "2.6.4"
+version = "2.6.6"
 dependencies = [
  "bincode",
  "chrono",
@@ -2071,7 +2083,7 @@ dependencies = [
  "hyper",
  "indicatif",
  "log",
- "quick-xml",
+ "quick-xml 0.20.0",
  "regex",
  "reqwest",
  "semver 0.11.0",

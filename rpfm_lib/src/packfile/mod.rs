@@ -28,7 +28,6 @@ use rayon::prelude::*;
 use unicase::UniCase;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::convert::TryFrom;
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
@@ -2019,7 +2018,7 @@ impl PackFile {
     pub fn optimize(&mut self, dependencies: &Dependencies) -> Result<Vec<Vec<String>>> {
 
         // We can only optimize if we have vanilla data available.
-        if !dependencies.game_has_vanilla_data_loaded() {
+        if !dependencies.game_has_vanilla_data_loaded(true) {
             return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
         }
 
@@ -2027,12 +2026,15 @@ impl PackFile {
         let mut files_to_delete: Vec<Vec<String>> = vec![];
 
         // First, do a hash pass over all the files, and mark for removal those that match by path and hash with vanilla/parent ones.
-        let dependencies_hashes = dependencies.get_dependencies_data_hashes_by_path(true, true)?;
-        files_to_delete.append(&mut self.get_ref_mut_packed_files_all().into_par_iter().filter_map(|packed_file| {
-            if let Some(dependency_hash) = dependencies_hashes.get(&packed_file.get_path().join("/")) {
+        let packedfiles_paths = self.get_ref_packed_files_all_paths().iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>();
+        let mut dependencies_overwritten_files = dependencies.get_most_relevant_files_by_paths(&packedfiles_paths);
+        files_to_delete.append(&mut dependencies_overwritten_files.iter_mut().filter_map(|dep_packed_file| {
+            if let Some(packed_file) = self.get_ref_mut_packed_file_by_path(dep_packed_file.get_path()) {
                 if let Ok(local_hash) = packed_file.get_hash_from_data() {
-                    if &&local_hash == dependency_hash {
-                        Some(packed_file.get_path().to_vec())
+                    if let Ok(dependency_hash) = dep_packed_file.get_hash_from_data() {
+                        if local_hash == dependency_hash {
+                            Some(packed_file.get_path().to_vec())
+                        } else { None }
                     } else { None }
                 } else { None }
             } else { None }
@@ -2458,7 +2460,7 @@ impl PackFile {
                         }
 
                         for packed_file in pack_file.get_ref_packed_files_all() {
-                            if let Ok(cached_packed_file) = CachedPackedFile::try_from(packed_file) {
+                            if let Ok(cached_packed_file) = CachedPackedFile::new_from_packed_file(packed_file) {
                                 cached_packed_files.insert(cached_packed_file.get_ref_packed_file_path().to_owned(), cached_packed_file);
                             }
                         }
@@ -2479,7 +2481,7 @@ impl PackFile {
                         }
 
                         for packed_file in pack_file.get_ref_packed_files_all() {
-                            if let Ok(cached_packed_file) = CachedPackedFile::try_from(packed_file) {
+                            if let Ok(cached_packed_file) = CachedPackedFile::new_from_packed_file(packed_file) {
                                 cached_packed_files.insert(cached_packed_file.get_ref_packed_file_path().to_owned(), cached_packed_file);
                             }
                         }

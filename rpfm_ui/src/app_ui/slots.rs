@@ -14,7 +14,7 @@ Module with all the code related to the main `AppUISlot`.
 
 use qt_widgets::QAction;
 use qt_widgets::{QFileDialog, q_file_dialog::{FileMode, Option as QFileDialogOption}};
-use qt_widgets::QMessageBox;
+use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::SlotOfQPoint;
 
 use qt_gui::QCursor;
@@ -934,8 +934,21 @@ impl AppUISlots {
                     // If there is no problem, ere we go.
                     app_ui.main_window.set_enabled(false);
 
+                    let wait_dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+                        q_message_box::Icon::Information,
+                        &qtr("rpfm_title"),
+                        &qtr("generate_dependencies_cache_in_progress_message"),
+                        QFlags::from(0),
+                        &app_ui.main_window,
+                    );
+
+                    wait_dialog.set_modal(true);
+                    wait_dialog.set_standard_buttons(QFlags::from(0));
+                    wait_dialog.show();
+
                     let receiver = CENTRAL_COMMAND.send_background(Command::GenerateDependenciesCache(asskit_path, version));
                     let response = CentralCommand::recv_try(&receiver);
+
                     match response {
                         Response::DependenciesInfo(response) => {
                             let mut parent_build_data = BuildData::new();
@@ -951,9 +964,13 @@ impl AppUISlots {
                             dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
                             dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
 
+                            wait_dialog.done(1);
                             show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true)
                         },
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => {
+                            wait_dialog.done(1);
+                            show_dialog(&app_ui.main_window, error, false);
+                        },
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 

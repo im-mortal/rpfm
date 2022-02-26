@@ -30,7 +30,10 @@ pub unsafe fn set_connections(ui: &ToolUnitEditor, slots: &ToolUnitEditorSlots) 
     ui.unit_list_filter_line_edit.text_changed().connect(&slots.filter_edited);
     ui.timer_delayed_updates.timeout().connect(&slots.delayed_updates);
     ui.tool.find_widget::<QComboBox>("main_units_caste_combobox")?.current_index_changed().connect(&slots.change_caste);
-    ui.unit_icon_key_combobox.current_index_changed().connect(&slots.change_icon);
+
+    ui.copy_unit_new_unit_name_combobox.current_text_changed().connect(&slots.copy_unit_check);
+
+    ui.variant_editor_tool_button.released().connect(&slots.open_variant_editor);
 
     ui.tool.button_box.button(StandardButton::Cancel).released().connect(ui.tool.get_ref_dialog().slot_close());
     ui.tool.button_box.button(StandardButton::Ok).released().connect(ui.tool.get_ref_dialog().slot_accept());

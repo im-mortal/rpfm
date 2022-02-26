@@ -1105,3 +1105,48 @@ tools_unit_battle_visibility = Battle Visibility
 tools_unit_multiplayer = Multiplayer
 tools_unit_extra_data = Extra Data
 copy_unit = Copy Unit
+generate_dependencies_cache_in_progress_message = Generating Dependencies Cache... this may take a while.
+copy_unit_instructions = <p>Write the new unit's key in the input field, and hit accept. Also, note:</p>
+    <ul>
+        <li>Existing unit keys are not valid.</li>
+        <li>Certain keys will be changed in the copied unit to match the unit key.</li>
+    </ul>
+
+copy_unit_new_unit_name = Unit Key
+settings_disable_file_previews = Disable PackedFile Previews
+tt_settings_disable_file_previews_tip = Check this to make RPFM always open PackedFiles as non-preview, so they'll not get closed when opening another PackedFile.
+variant_editor_title = Variant Editor
+variants_variant_filename = Variant Mesh FileName
+variants_mesh_editor_title = Variant Mesh Editor
+unit_variants_colours_title = Variant Colours
+unit_variants_unit_card = Unit Card
+unit_variants_colours_primary_colour = Primary Colour
+unit_variants_colours_secondary_colour = Secondary Colour
+unit_variants_colours_tertiary_colour = Tertiary Colour
+faction_list_title = Factions (* means no specific faction)
+unit_variants_colours_list_title = Colour Variants (Key)
+
+context_menu_add_faction = Add Faction
+context_menu_clone_faction = Clone Faction
+context_menu_delete_faction = Delete Faction
+context_menu_add_colour_variant = Add Colour Variant
+context_menu_clone_colour_variant = Clone Colour Variant
+context_menu_delete_colour_variant = Delete Colour Variant
+
+new_faction_title = New/Clone Faction
+new_faction_instructions = <p>Select the faction you want this unit to have a specific variant for. Also, note:</p>
+    <ul>
+        <li>Factions already selected for a Variant are not valid.</li>
+    </ul>
+new_faction_name = Faction
+
+new_colour_variant_title = New/Clone Colour Variant
+new_colour_variant_instructions = <p>Write the new colour variant key in the input field, and hit accept. Also, note:</p>
+    <ul>
+        <li>Existing colour variant keys are not valid.</li>
+        <li>Key must be numeric.</li>
+    </ul>
+
+new_colour_variant_name = Colour Variant Key
+
+line_counter = Rows On Filter / On Table: {"{"}{"}"} / {"{"}{"}"}

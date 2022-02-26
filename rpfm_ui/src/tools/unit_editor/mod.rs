@@ -14,6 +14,8 @@ Module with all the code for managing the Unit Editor tool.
 This tool is a dialog where you can pick a unit from a list, and edit its values in an easy-to-use way.
 !*/
 
+use qt_widgets::QGridLayout;
+use qt_widgets::q_dialog_button_box;
 use qt_widgets::q_dialog_button_box::ButtonRole;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
@@ -28,9 +30,11 @@ use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
+use qt_core::AlignmentFlag;
 use qt_core::CaseSensitivity;
 use qt_core::QBox;
 use qt_core::QByteArray;
+use qt_core::QFlags;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QModelIndex;
 use qt_core::QPtr;
@@ -38,6 +42,7 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QTimer;
 use qt_core::QVariant;
+use qt_core::SortOrder;
 
 use cpp_core::Ref;
 
@@ -46,6 +51,7 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
+use rpfm_lib::packedfile::text::{Text, TextType};
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::packfile::packedfile::PackedFile;
 
@@ -54,12 +60,14 @@ use rpfm_macros::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::{qtr, tr};
+use crate::tools::unit_editor::variant_unit_editor::SubToolVariantUnitEditor;
 use crate::views::table::utils::{clean_column_names, get_reference_data};
 use self::slots::ToolUnitEditorSlots;
 use super::*;
 
 mod connections;
 mod slots;
+mod variant_unit_editor;
 
 /// Tool's ui template path.
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_unit_editor.ui";
@@ -68,6 +76,10 @@ const VIEW_RELEASE: &str = "ui/tool_unit_editor.ui";
 /// Copy Unit's ui template path.
 const COPY_UNIT_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_unit_editor_copy_unit.ui";
 const COPY_UNIT_VIEW_RELEASE: &str = "ui/tool_unit_editor_copy_unit.ui";
+
+/// Path and extension of variant meshes.
+const VARIANT_MESH_PATH: &str = "variantmeshes/variantmeshdefinitions/";
+const VARIANT_MESH_EXTENSION: &str = "variantmeshdefinition";
 
 /// List of games this tool supports.
 const TOOL_SUPPORTED_GAMES: [&str; 1] = [
@@ -80,8 +92,8 @@ const DEFAULT_FILENAME: &str = "unit_edited";
 /// Role that stores the data of the unit represented by each item.
 const UNIT_DATA: i32 = 60;
 
-/// Path where all the unit info pictures (icons are too small) are located.
-const UNIT_INFOPICS_PATH: &str = "ui/units/infopics/";
+/// Key under which variantmeshes data is saved.
+const VARIANT_MESH_DATA: &str = "variants_variant_mesh_data";
 
 /// Path where all the unit icon pictures (for backup) are located.
 const UNIT_ICONS_PATH: &str = "ui/units/icons/";
@@ -96,6 +108,14 @@ const LAND_UNITS_CUSTOM_FIELDS: [&str; 3] = [
 /// List of fields tht require special treatment from main_units_tables.
 const MAIN_UNITS_CUSTOM_FIELDS: [&str; 1] = [
     "land_unit",
+];
+
+/// List of fields tht require special treatment from unit_variants_tables.
+const UNIT_VARIANTS_CUSTOM_FIELDS: [&str; 4] = [
+    "unit_card",
+    "faction",
+    "unit",
+    "variant",
 ];
 
 /// List of loc keys used by this tool.
@@ -127,10 +147,8 @@ pub struct ToolUnitEditor {
 
     detailed_view_tab_widget: QPtr<QTabWidget>,
 
-    unit_icon_label: QPtr<QLabel>,
-    unit_icon_key_label: QPtr<QLabel>,
-    unit_icon_key_combobox: QPtr<QComboBox>,
-    unit_icon_key_tool_button: QPtr<QToolButton>,
+    unit_icon_label_preview_widget: QPtr<QWidget>,
+    variant_editor_tool_button: QPtr<QToolButton>,
 
     packed_file_name_label: QPtr<QLabel>,
     packed_file_name_line_edit: QPtr<QLineEdit>,
@@ -138,6 +156,16 @@ pub struct ToolUnitEditor {
 
     unit_caste_previous: Rc<RwLock<String>>,
     unit_type_dependant_widgets: HashMap<String, Vec<QPtr<QWidget>>>,
+
+    //-----------------------------------------------------------------------//
+    // Copy unit dialog.
+    //-----------------------------------------------------------------------//
+    copy_unit_widget: QBox<QWidget>,
+    copy_unit_button_box: QPtr<QDialogButtonBox>,
+    copy_unit_instructions_label: QPtr<QLabel>,
+    copy_unit_new_unit_name_label: QPtr<QLabel>,
+    copy_unit_new_unit_name_combobox: QPtr<QComboBox>,
+    copy_unit_new_unit_name_combobox_model: QBox<QStandardItemModel>,
 
     //-----------------------------------------------------------------------//
     // Main tab groupboxes.
@@ -188,7 +216,9 @@ impl ToolUnitEditor {
             PathType::Folder(vec!["db".to_owned(), "unit_description_historical_texts_tables".to_owned()]),
             PathType::Folder(vec!["db".to_owned(), "unit_description_short_texts_tables".to_owned()]),
             PathType::Folder(vec!["db".to_owned(), "unit_description_strengths_weaknesses_texts_tables".to_owned()]),
+            PathType::Folder(vec!["db".to_owned(), "unit_variants_colours_tables".to_owned()]),
             PathType::Folder(vec!["db".to_owned(), "unit_variants_tables".to_owned()]),
+            PathType::Folder(vec!["db".to_owned(), "variants_tables".to_owned()]),
             PathType::Folder(vec!["text".to_owned()]),
         ];
 
@@ -214,10 +244,9 @@ impl ToolUnitEditor {
         timer_delayed_updates.set_single_shot(true);
 
         // Icon stuff.
-        let unit_icon_label: QPtr<QLabel> = tool.find_widget("unit_icon_label")?;
-        let unit_icon_key_label: QPtr<QLabel> = tool.find_widget("unit_icon_key_label")?;
-        let unit_icon_key_combobox: QPtr<QComboBox> = tool.find_widget("unit_icon_key_combobox")?;
-        let unit_icon_key_tool_button: QPtr<QToolButton> = tool.find_widget("unit_icon_key_tool_button")?;
+        let unit_icon_label_preview_widget: QPtr<QWidget> = tool.find_widget("unit_icon_label_preview_widget")?;
+        let variant_editor_tool_button: QPtr<QToolButton> = tool.find_widget("variant_editor_tool_button")?;
+        create_grid_layout(unit_icon_label_preview_widget.static_upcast());
 
         // File name and button box.
         let packed_file_name_label: QPtr<QLabel> = tool.find_widget("packed_file_name_label")?;
@@ -230,6 +259,19 @@ impl ToolUnitEditor {
         // Extra stuff.
         let detailed_view_tab_widget: QPtr<QTabWidget> = tool.find_widget("detailed_view_tab_widget")?;
         detailed_view_tab_widget.set_enabled(false);
+
+        //-----------------------------------------------------------------------//
+        // Copy unit dialog.
+        //-----------------------------------------------------------------------//
+        let copy_unit_view = if cfg!(debug_assertions) { COPY_UNIT_VIEW_DEBUG } else { COPY_UNIT_VIEW_RELEASE };
+        let copy_unit_widget = Tool::load_template(&tool.main_widget, copy_unit_view)?;
+
+        let copy_unit_button_box: QPtr<QDialogButtonBox> = tool.find_widget("copy_unit_button_box")?;
+        let copy_unit_instructions_label: QPtr<QLabel> = tool.find_widget("copy_unit_instructions_label")?;
+        let copy_unit_new_unit_name_label: QPtr<QLabel> = tool.find_widget("copy_unit_new_unit_name_label")?;
+        let copy_unit_new_unit_name_combobox: QPtr<QComboBox> = tool.find_widget("copy_unit_new_unit_name_combobox")?;
+        let copy_unit_new_unit_name_combobox_model = QStandardItemModel::new_1a(&copy_unit_new_unit_name_combobox);
+        copy_unit_new_unit_name_combobox.set_model(&copy_unit_new_unit_name_combobox_model);
 
         //-----------------------------------------------------------------------//
         // Main tab groupboxes.
@@ -276,10 +318,8 @@ impl ToolUnitEditor {
 
             detailed_view_tab_widget,
 
-            unit_icon_label,
-            unit_icon_key_label,
-            unit_icon_key_combobox,
-            unit_icon_key_tool_button,
+            unit_icon_label_preview_widget,
+            variant_editor_tool_button,
 
             packed_file_name_label,
             packed_file_name_line_edit,
@@ -287,6 +327,16 @@ impl ToolUnitEditor {
 
             unit_caste_previous,
             unit_type_dependant_widgets,
+
+            //-----------------------------------------------------------------------//
+            // Copy unit dialog.
+            //-----------------------------------------------------------------------//
+            copy_unit_widget,
+            copy_unit_button_box,
+            copy_unit_instructions_label,
+            copy_unit_new_unit_name_label,
+            copy_unit_new_unit_name_combobox,
+            copy_unit_new_unit_name_combobox_model,
 
             //-----------------------------------------------------------------------//
             // Main tab groupboxes.
@@ -330,7 +380,7 @@ impl ToolUnitEditor {
             view.save_data(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui)?;
         }
 
-        // If nothing failed, it means we have successfully saved the data back to disk, or canceled.
+        // If nothing failed, it means we have successfully saved the data back to disk, or canceled.wh_main_teb_cha_captain_0
         Ok(())
     }
 
@@ -345,13 +395,15 @@ impl ToolUnitEditor {
         let mut processed_data = HashMap::new();
 
         // Get the table's data.
-        get_data_from_all_sources!(self, get_battle_set_piece_armies_characters_data, data, processed_data);
+        // NOTE: Order matters here.
         get_data_from_all_sources!(self, get_main_units_data, data, processed_data);
         get_data_from_all_sources!(self, get_land_units_data, data, processed_data);
         get_data_from_all_sources!(self, get_unit_description_historical_text_data, data, processed_data);
         get_data_from_all_sources!(self, get_unit_description_short_texts_data, data, processed_data);
         get_data_from_all_sources!(self, get_unit_description_strengths_weaknesses_texts_data, data, processed_data);
         get_data_from_all_sources!(self, get_unit_variants_data, data, processed_data);
+        get_data_from_all_sources!(self, get_unit_variants_colours_data, data, processed_data);
+        get_data_from_all_sources!(self, get_variants_data, data, processed_data);
         get_data_from_all_sources!(self, get_loc_data, data, processed_data);
 
         // Once we got everything processed, build the items for the ListView.
@@ -359,25 +411,6 @@ impl ToolUnitEditor {
             let item = QStandardItem::from_q_string(&QString::from_std_str(&key)).into_ptr();
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(data).unwrap())), UNIT_DATA);
             self.unit_list_model.append_row_q_standard_item(item);
-        }
-
-        // Then, build the combos lists with dependencies data.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(PathType::Folder(UNIT_ICONS_PATH.split("/").map(|x| x.to_owned()).collect())));
-        let response = CentralCommand::recv(&receiver);
-        let icon_keys = if let Response::HashMapDataSourceHashSetVecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-        let icon_keys_sorted = icon_keys.values()
-            .map(|paths|
-                paths.par_iter()
-                .map(|path| path.join("/"))
-                .collect::<Vec<String>>()
-            )
-            .flatten()
-            .sorted()
-            .collect::<Vec<String>>();
-
-        for icon_key in &icon_keys_sorted {
-            let name_without_extension = icon_key.split('.').collect::<Vec<&str>>()[0];
-            self.unit_icon_key_combobox.add_item_q_string(&QString::from_std_str(name_without_extension));
         }
 
         // Store the PackedFiles for use when saving.
@@ -414,21 +447,33 @@ impl ToolUnitEditor {
         let unit_description_historical_texts_packed_file = self.save_unit_description_historical_texts_tables_data(&data_to_save)?;
         let unit_description_short_texts_packed_file = self.save_unit_description_short_texts_tables_data(&data_to_save)?;
         let unit_description_strengths_weaknesses_texts_packed_file = self.save_unit_description_strengths_weaknesses_texts_tables_data(&data_to_save)?;
-        //let unit_variants_packed_file = self.save_unit_variants_tables_data(&data_to_save)?;
+        let unit_variants_colours_packed_file = self.save_unit_variants_colours_tables_data(&data_to_save)?;
+        let unit_variants_packed_file = self.save_unit_variants_tables_data(&data_to_save)?;
+        let variants_packed_file = self.save_variants_tables_data(&data_to_save)?;
 
         let loc_packed_file = self.save_loc_data(&data_to_save)?;
 
-        // Once we got the PackedFiles to save properly edited, call the generic tool `save` function to save them to a PackFile.
-        self.tool.save(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, &[
+        let mut variant_meshes_packed_files = self.save_variant_meshes_data(&data_to_save)?;
+
+        // Join all PackedFiles together to pass them to the save function.
+        let mut packed_files = vec![
             land_units_packed_file,
             main_units_packed_file,
             unit_description_historical_texts_packed_file,
             unit_description_short_texts_packed_file,
             unit_description_strengths_weaknesses_texts_packed_file,
-            //unit_variants_packed_file,
+            unit_variants_colours_packed_file,
+            unit_variants_packed_file,
+            variants_packed_file,
 
             loc_packed_file
-        ])
+        ];
+
+        // Also add the edited variant_meshes.
+        packed_files.append(&mut variant_meshes_packed_files);
+
+        // Once we got the PackedFiles to save properly edited, call the generic tool `save` function to save them to a PackFile.
+        self.tool.save(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, &packed_files)
     }
 
     /// This function loads the data of a faction into the detailed view.
@@ -462,11 +507,6 @@ impl ToolUnitEditor {
         }
 
         //-----------------------------------------------------------------------//
-        // unit_variants_tables
-        //-----------------------------------------------------------------------//
-        self.tool.load_field_to_detailed_view_editor_string_combo(&data, &self.unit_icon_key_combobox, "unit_variants_unit_card");
-
-        //-----------------------------------------------------------------------//
         // Loc data
         //-----------------------------------------------------------------------//
         self.tool.load_field_to_detailed_view_editor_string_short(&data, &self.loc_land_units_onscreen_name_line_edit, "loc_land_units_onscreen_name");
@@ -475,7 +515,7 @@ impl ToolUnitEditor {
         self.tool.load_field_to_detailed_view_editor_string_long(&data, &self.loc_unit_description_strengths_weaknesses_texts_text_ktexteditor, "loc_unit_description_strengths_weaknesses_texts_text");
 
         // The icon needs to be pulled up from the dependencies cache on load.
-        self.load_unit_icon(&data, None);
+        self.load_unit_icons(&data);
 
         if !errors.is_empty() {
             show_message_warning(&self.tool.message_widget, errors.join("\n"));
@@ -483,51 +523,55 @@ impl ToolUnitEditor {
     }
 
     /// This function loads the unit icon into the tool. If provided with a key, it uses it. If not, it uses whatever key the unit has.
-    pub unsafe fn load_unit_icon(&self, data: &HashMap<String, String>, key: Option<String>) {
-        let unit_card = if let Some(unit_card) = key { Some(unit_card.to_owned()) }
-        else if let Some(unit_card) = data.get("unit_variants_unit_card") { Some(unit_card.to_owned()) }
-        else { None };
+    pub unsafe fn load_unit_icons(&self, data: &HashMap<String, String>) {
 
-        // The icon needs to be pulled up from the dependencies cache on load.
-        if let Some(unit_card) = unit_card {
-            let icon_path_png = format!("{}{}.png", UNIT_INFOPICS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
-            let icon_path_tga = format!("{}{}.tga", UNIT_INFOPICS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
-            let icon_path_png_lowres = format!("{}{}.png", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
-            let icon_path_tga_lowres = format!("{}{}.tga", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+        // Clear the current layout.
+        clear_layout(&self.unit_icon_label_preview_widget);
+        let layout: QPtr<QGridLayout> = self.unit_icon_label_preview_widget.layout().static_downcast();
 
-            let icon_paths = vec![
-                PathType::File(icon_path_png.to_vec()),
-                PathType::File(icon_path_tga.to_vec()),
-                PathType::File(icon_path_png_lowres.to_vec()),
-                PathType::File(icon_path_tga_lowres.to_vec()),
-            ];
+        let unit_cards = data.iter().filter_map(|(key, value)| if key.starts_with("unit_variants_unit_card") { Some(value) } else { None }).collect::<Vec<&String>>();
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(icon_paths));
+        // The icons needs to be pulled up from the dependencies cache on load.
+        if !unit_cards.is_empty() {
+            let mut icon_paths = vec![];
+            for unit_card in unit_cards {
+                let icon_path_png = PathType::File(format!("{}{}.png", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>());
+                let icon_path_tga = PathType::File(format!("{}{}.tga", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>());
+
+                if !icon_paths.contains(&icon_path_png) {
+                    icon_paths.push(icon_path_png);
+                }
+
+                if !icon_paths.contains(&icon_path_tga) {
+                    icon_paths.push(icon_path_tga);
+                }
+            }
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(icon_paths.to_vec()));
             let response = CentralCommand::recv(&receiver);
             let images_data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-            let image_file = if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png) {
-                Some(image_file)
-            } else if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_tga) {
-                Some(image_file)
-            } else if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png_lowres) {
-                Some(image_file)
-            } else if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_tga_lowres) {
-                Some(image_file)
-            } else {
-                None
-            };
 
-            if let Some(image_file) = image_file {
-                let image_data = image_file.get_raw_data().unwrap();
+            let images_files = icon_paths.iter().filter_map(|path_type| {
+                if let PathType::File(path) = path_type {
+                    Tool::get_most_relevant_file(&images_data, &path)
+                } else { None }
+            }).collect::<Vec<PackedFile>>();
+
+            for (column, images_file) in images_files.iter().enumerate() {
+                let image_data = images_file.get_raw_data().unwrap();
                 let byte_array = QByteArray::from_slice(&image_data);
                 let image = QPixmap::new();
+                let label = QLabel::from_q_widget(&self.unit_icon_label_preview_widget);
                 image.load_from_data_q_byte_array(&byte_array);
-                self.unit_icon_label.set_pixmap(&image);
-            } else {
-                self.unit_icon_label.set_text(&QString::from_std_str("No image available"));
+                label.set_alignment(QFlags::from(AlignmentFlag::AlignHCenter | AlignmentFlag::AlignVCenter));
+                label.set_pixmap(&image);
+                layout.add_widget_3a(&label, 0, column as i32);
             }
         } else {
-            self.unit_icon_label.set_text(&QString::from_std_str("No image available"));
+            let label = QLabel::from_q_widget(&self.unit_icon_label_preview_widget);
+            label.set_alignment(QFlags::from(AlignmentFlag::AlignHCenter | AlignmentFlag::AlignVCenter));
+            label.set_text(&QString::from_std_str("No image available"));
+            layout.add_widget_3a(&label, 0, 0);
         }
     }
 
@@ -549,11 +593,6 @@ impl ToolUnitEditor {
         if let Err(error) = self.tool.save_definition_from_detailed_view_editor(&mut data, "main_units", &MAIN_UNITS_CUSTOM_FIELDS) {
             errors.push(error.to_string());
         }
-
-        //-----------------------------------------------------------------------//
-        // unit_variants_tables
-        //-----------------------------------------------------------------------//
-        //data.insert("unit_variants_unit_card".to_owned(), self.unit_icon_key_combobox.current_text().to_std_string());
 
         //-----------------------------------------------------------------------//
         // Loc data
@@ -584,8 +623,15 @@ impl ToolUnitEditor {
 
     /// Function to filter the faction list.
     pub unsafe fn filter_list(&self) {
+
+        // So, funny bug: if we "hide" with a filter the open item, the entire thing crashes. Not sure why.
+        // So we have to "unselect" it, filter, then check if it's still visible, and select it again.
+        self.unit_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.unit_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
+
         self.unit_list_filter.set_filter_case_sensitivity(CaseSensitivity::CaseInsensitive);
         self.unit_list_filter.set_filter_regular_expression_q_string(&self.unit_list_filter_line_edit.text());
+
+        self.unit_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.unit_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
     }
 
     /// Function to setup all the translations of this view.
@@ -595,6 +641,12 @@ impl ToolUnitEditor {
         self.detailed_view_tab_widget.set_tab_text(0, &qtr("tools_unit_editor_main_tab_title"));
         self.detailed_view_tab_widget.set_tab_text(1, &qtr("tools_unit_editor_land_unit_tab_title"));
         self.detailed_view_tab_widget.set_tab_text(2, &qtr("tools_unit_editor_variantmeshes_tab_title"));
+
+        //-----------------------------------------------------------------------//
+        // Copy unit dialog.
+        //-----------------------------------------------------------------------//
+        self.copy_unit_instructions_label.set_text(&qtr("copy_unit_instructions"));
+        self.copy_unit_new_unit_name_label.set_text(&qtr("copy_unit_new_unit_name"));
 
         //-----------------------------------------------------------------------//
         // Main tab groupboxes.
@@ -607,11 +659,6 @@ impl ToolUnitEditor {
         self.unit_editor_battle_visibility_groupbox.set_title(&qtr("tools_unit_battle_visibility"));
 
         //-----------------------------------------------------------------------//
-        // unit_variants_tables
-        //-----------------------------------------------------------------------//
-        self.unit_icon_key_label.set_text(&QString::from_std_str(clean_column_names("unit_variants_unit_card")));
-
-        //-----------------------------------------------------------------------//
         // Loc data
         //-----------------------------------------------------------------------//
         self.loc_land_units_onscreen_name_label.set_text(&QString::from_std_str(&clean_column_names("land_units_onscreen_name")));
@@ -620,15 +667,15 @@ impl ToolUnitEditor {
         self.loc_unit_description_strengths_weaknesses_texts_text_label.set_text(&QString::from_std_str(&clean_column_names("unit_description_strengths_weaknesses_texts_text")));
     }
 
-    /// This function gets the data needed for the tool from the land_units table.
-    unsafe fn get_battle_set_piece_armies_characters_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        Tool::get_table_data(data, processed_data, "battle_set_piece_armies_characters", "character_name", Some(("main_units".to_owned(), "unit".to_owned())))?;
-        Ok(())
-    }
+    // This function gets the data needed for the tool from the land_units table.
+    //unsafe fn get_battle_set_piece_armies_characters_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
+    //    Tool::get_table_data(data, processed_data, "battle_set_piece_armies_characters", &["character_name"], Some(("main_units".to_owned(), "unit".to_owned())))?;
+    //    Ok(())
+    //}
 
     /// This function gets the data needed for the tool from the land_units table.
     unsafe fn get_land_units_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        if let Some(table) = Tool::get_table_data(data, processed_data, "land_units", "key", Some(("main_units".to_owned(), "land_unit".to_owned())))? {
+        if let Some(table) = Tool::get_table_data(data, processed_data, "land_units", &["key"], Some(("main_units".to_owned(), "land_unit".to_owned())))? {
             let reference_data = get_reference_data("land_units_tables", table.get_ref_definition())?;
 
             self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("ai_usage_group")? as i32, &self.tool.find_widget("land_units_ai_usage_group_combobox")?, &reference_data);
@@ -658,7 +705,7 @@ impl ToolUnitEditor {
 
     /// This function gets the data needed for the tool from the main_units table.
     unsafe fn get_main_units_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        if let Some(table) = Tool::get_table_data(data, processed_data, "main_units", "unit", None)? {
+        if let Some(table) = Tool::get_table_data(data, processed_data, "main_units", &["unit"], None)? {
             let reference_data = get_reference_data("main_units_tables", table.get_ref_definition())?;
 
             self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("additional_building_requirement")? as i32, &self.tool.find_widget("main_units_additional_building_requirement_combobox")?, &reference_data);
@@ -682,25 +729,37 @@ impl ToolUnitEditor {
 
     /// This function gets the data needed for the tool from the unit_description_historical_text table.
     unsafe fn get_unit_description_historical_text_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        Tool::get_table_data(data, processed_data, "unit_description_historical_texts", "key", Some(("land_units".to_owned(), "historical_description_text".to_owned())))?;
+        Tool::get_table_data(data, processed_data, "unit_description_historical_texts", &["key"], Some(("land_units".to_owned(), "historical_description_text".to_owned())))?;
         Ok(())
     }
 
     /// This function gets the data needed for the tool from the unit_description_short_texts table.
     unsafe fn get_unit_description_short_texts_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        Tool::get_table_data(data, processed_data, "unit_description_short_texts", "key", Some(("land_units".to_owned(), "short_description_text".to_owned())))?;
+        Tool::get_table_data(data, processed_data, "unit_description_short_texts", &["key"], Some(("land_units".to_owned(), "short_description_text".to_owned())))?;
         Ok(())
     }
 
     /// This function gets the data needed for the tool from the unit_description_strengths_weaknesses_texts table.
     unsafe fn get_unit_description_strengths_weaknesses_texts_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        Tool::get_table_data(data, processed_data, "unit_description_strengths_weaknesses_texts", "key", Some(("land_units".to_owned(), "strengths_&_weaknesses_text".to_owned())))?;
+        Tool::get_table_data(data, processed_data, "unit_description_strengths_weaknesses_texts", &["key"], Some(("land_units".to_owned(), "strengths_&_weaknesses_text".to_owned())))?;
+        Ok(())
+    }
+
+    /// This function gets the data needed for the tool from the unit_variants_colours table.
+    unsafe fn get_unit_variants_colours_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
+        Tool::get_table_data(data, processed_data, "unit_variants_colours", &["unit_variant", "key"], Some(("unit_variants".to_owned(), "name".to_owned())))?;
         Ok(())
     }
 
     /// This function gets the data needed for the tool from the unit_variants table.
     unsafe fn get_unit_variants_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        Tool::get_table_data(data, processed_data, "unit_variants", "name", Some(("land_units".to_owned(), "key".to_owned())))?;
+        Tool::get_table_data(data, processed_data, "unit_variants", &["unit", "faction"], Some(("land_units".to_owned(), "key".to_owned())))?;
+        Ok(())
+    }
+
+    /// This function gets the data needed for the tool from the variants table.
+    unsafe fn get_variants_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
+        Tool::get_table_data(data, processed_data, "variants", &["variant_name"], Some(("unit_variants".to_owned(), "variant".to_owned())))?;
         Ok(())
     }
 
@@ -716,37 +775,76 @@ impl ToolUnitEditor {
 
     /// This function takes care of saving the land_units related data into a PackedFile.
     unsafe fn save_land_units_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
-        self.tool.save_table_data(data, "land_units", &self.get_file_name())
+        self.tool.save_table_data(data, "land_units", &self.get_file_name(), &["key"])
     }
 
     /// This function takes care of saving the main_units related data into a PackedFile.
     unsafe fn save_main_units_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
-        self.tool.save_table_data(data, "main_units", &self.get_file_name())
+        self.tool.save_table_data(data, "main_units", &self.get_file_name(), &["unit"])
     }
 
     /// This function takes care of saving the unit_description_historical_texts related data into a PackedFile.
     unsafe fn save_unit_description_historical_texts_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
-        self.tool.save_table_data(data, "unit_description_historical_texts", &self.get_file_name())
+        self.tool.save_table_data(data, "unit_description_historical_texts", &self.get_file_name(), &["key"])
     }
 
     /// This function takes care of saving the unit_description_short_texts related data into a PackedFile.
     unsafe fn save_unit_description_short_texts_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
-        self.tool.save_table_data(data, "unit_description_short_texts", &self.get_file_name())
+        self.tool.save_table_data(data, "unit_description_short_texts", &self.get_file_name(), &["key"])
     }
 
     /// This function takes care of saving the unit_description_strengths_weaknesses_texts related data into a PackedFile.
     unsafe fn save_unit_description_strengths_weaknesses_texts_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
-        self.tool.save_table_data(data, "unit_description_strengths_weaknesses_texts", &self.get_file_name())
+        self.tool.save_table_data(data, "unit_description_strengths_weaknesses_texts", &self.get_file_name(), &["key"])
+    }
+
+    /// This function takes care of saving the unit_variants_colours related data into a PackedFile.
+    unsafe fn save_unit_variants_colours_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
+        self.tool.save_table_data(data, "unit_variants_colours", &self.get_file_name(), &["key"])
     }
 
     /// This function takes care of saving the unit_variants related data into a PackedFile.
     unsafe fn save_unit_variants_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
-        self.tool.save_table_data(data, "unit_variants", &self.get_file_name())
+        self.tool.save_table_data(data, "unit_variants", &self.get_file_name(), &["faction"])
+    }
+
+    /// This function takes care of saving the variants related data into a PackedFile.
+    unsafe fn save_variants_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
+        self.tool.save_table_data(data, "variants", &self.get_file_name(), &["variant_name"])
     }
 
     /// This function takes care of saving all the loc-related data into a PackedFile.
     unsafe fn save_loc_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
         self.tool.save_loc_data(data, &self.get_file_name(), &LOC_KEYS)
+    }
+
+    /// This function takes care of saving all the edited variant meshes into PackedFiles.
+    unsafe fn save_variant_meshes_data(&self, data: &[HashMap<String, String>]) -> Result<Vec<PackedFile>> {
+        let mut packed_files = vec![];
+        for unit_data in data {
+            let mut variant_meshes = unit_data.iter()
+                .filter(|(key, _)| key.starts_with(VARIANT_MESH_DATA))
+                .filter_map(|(key, value)| {
+                    let subkeys = key.split('|').collect::<Vec<&str>>();
+                    let file_name = if subkeys.len() > 1 {
+                        unit_data.get(&format!("variants_variant_filename|{}", subkeys[1..].join("|")))?
+                    } else {
+                        unit_data.get(key)?
+                    };
+
+                    let mut text = Text::new();
+                    text.set_contents(value);
+                    text.set_text_type(TextType::Xml);
+
+                    let path = format!("{}{}.{}", VARIANT_MESH_PATH, file_name, VARIANT_MESH_EXTENSION).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+                    let packed_file = PackedFile::new_from_decoded(&DecodedPackedFile::Text(text), &path);
+                    Some(packed_file)
+                })
+                .collect::<Vec<PackedFile>>();
+            packed_files.append(&mut variant_meshes);
+        }
+
+        Ok(packed_files)
     }
 
     /// This function returns the file name this tool uses for the PackedFiles, when a PackedFile has no specific name.
@@ -772,5 +870,98 @@ impl ToolUnitEditor {
         let mut widgets_naval_unit = vec![];
         self.unit_type_dependant_widgets.insert(UnitType::NavalUnit, widgets_naval_unit);
         */
+    }
+
+    /// Function to load the `Copy Unit` dialog.
+    pub unsafe fn load_copy_unit_dialog(&self) -> Result<()> {
+        let source_unit = self.unit_list_view.selection_model().selection();
+        if source_unit.count_0a() != 1 {
+            return Err(ErrorKind::GenericHTMLError("No unit selected".to_string()).into());
+        }
+
+        let source_unit_real = self.get_ref_unit_list_filter().map_to_source(&source_unit.take_at(0).indexes().take_at(0));
+        let source_unit_name = self.get_ref_unit_list_model().item_from_index(&source_unit_real).text();
+        self.copy_unit_button_box.button(q_dialog_button_box::StandardButton::Ok).set_enabled(false);
+
+        // Copy the model of the unit list and sort it, because here we don't use an intermediate filter.
+        self.copy_unit_new_unit_name_combobox_model.clear();
+
+        for row in 0..self.unit_list_model.row_count_0a() {
+            let item = QStandardItem::from_q_string(&self.unit_list_model.item_1a(row).text());
+            self.copy_unit_new_unit_name_combobox_model.append_row_q_standard_item(item.into_ptr());
+        }
+
+        self.copy_unit_new_unit_name_combobox_model.sort_2a(0, SortOrder::AscendingOrder);
+        self.copy_unit_new_unit_name_combobox.set_current_text(&source_unit_name);
+
+        let dialog: QPtr<QDialog> = self.copy_unit_widget.static_downcast();
+        if dialog.exec() == 1 {
+
+            // Save the source unit.
+            self.save_from_detailed_view(source_unit_real.as_ref());
+
+            // Clone the source unit, updating its relevant keys in the process.
+            let new_item = (*self.unit_list_model.item_from_index(&source_unit_real)).clone();
+            let new_unit_name = self.copy_unit_new_unit_name_combobox.current_text();
+            new_item.set_text(&new_unit_name);
+
+            let mut data: HashMap<String, String> = serde_json::from_str(&new_item.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+            data.insert("main_units_unit".to_owned(), new_unit_name.to_std_string());
+            data.insert("land_units_key".to_owned(), new_unit_name.to_std_string());
+            self.update_keys(&mut data);
+            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+
+            self.unit_list_model.append_row_q_standard_item(new_item);
+            let new_index = self.unit_list_model.index_from_item(new_item);
+
+            // Clear the filters (just in case) and open the new unit.
+            self.get_ref_unit_list_filter_line_edit().clear();
+            self.get_ref_unit_list_filter().sort_2a(0, SortOrder::AscendingOrder);
+            self.get_ref_unit_list_view().set_current_index(&self.get_ref_unit_list_filter().map_from_source(&new_index));
+        }
+
+        Ok(())
+    }
+
+    /// Function to load the `Variant Editor` dialog.
+    pub unsafe fn open_variant_editor(&self) -> Result<()> {
+        let selection = self.unit_list_view.selection_model().selection();
+        let filter_index = selection.take_at(0).indexes().take_at(0);
+        let index = self.get_ref_unit_list_filter().map_to_source(filter_index.as_ref());
+
+        let mut data: HashMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+        let variant_data: HashMap<String, String> = data.iter().filter_map(|(key, val)|
+            if key.starts_with("unit_variants_colours") ||
+                key.starts_with("unit_variants") ||
+                key.starts_with("variants") {
+                Some((key.to_owned(), val.to_owned()))
+            } else { None }
+        ).collect();
+
+        // Log in debug mode, for debugging.
+        if cfg!(debug_assertions) {
+            log::info!("{:#?}", variant_data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+        }
+
+        let new_data = SubToolVariantUnitEditor::new(self.tool.get_ref_main_widget().as_ref().unwrap(), &variant_data)?;
+        if let Some(new_data) = new_data {
+            if cfg!(debug_assertions) {
+                log::info!("{:#?}", new_data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+            }
+
+            // Delete old variant entries before re-adding them.
+            data = data.iter().filter_map(|(key, val)|
+                if !key.starts_with("unit_variants_colours") &&
+                    !key.starts_with("unit_variants") &&
+                    !key.starts_with("variants") {
+                    Some((key.to_owned(), val.to_owned()))
+                } else { None }
+            ).collect();
+
+            data.extend(new_data);
+            self.unit_list_model.item_from_index(index.as_ref()).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+        }
+
+        Ok(())
     }
 }

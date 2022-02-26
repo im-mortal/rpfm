@@ -167,7 +167,7 @@ pub unsafe fn show_debug_dialog<T: AsRef<str>>(parent: impl cpp_core::CastInto<P
     let editor = new_text_editor_safe(&widget.static_upcast());
 
     layout.add_widget_5a(&editor, 0, 0, 1, 1);
-    set_text_safe(&editor, &QString::from_std_str(text).as_ptr(), &QString::from_std_str("plain").as_ptr());
+    set_text_safe(&editor.static_upcast(), &QString::from_std_str(text).as_ptr(), &QString::from_std_str("plain").as_ptr());
 
     // Center it on screen.
     window.resize_2a(1000, 600);
@@ -261,6 +261,16 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     accept_button.released().connect(dialog.slot_accept());
     cancel_button.released().connect(dialog.slot_close());
     dialog.exec();
+}
+
+/// This function deletes all widgets from a widget's layout.
+pub unsafe fn clear_layout(widget: &QPtr<QWidget>) {
+    let layout = widget.layout();
+    while !layout.is_empty() {
+        let item = layout.take_at(0);
+        item.widget().delete();
+        item.delete();
+    }
 }
 
 /// This function creates a `GridLayout` for the provided widget with the settings we want.

@@ -15,6 +15,7 @@ Module with all the code related to `ToolUnitEditorSlots`.
 use qt_core::QBox;
 use qt_core::SlotNoArgs;
 use qt_core::SlotOfQItemSelectionQItemSelection;
+use qt_core::SlotOfQString;
 
 use std::rc::Rc;
 
@@ -32,8 +33,9 @@ pub struct ToolUnitEditorSlots {
     pub load_data_to_detailed_view: QBox<SlotOfQItemSelectionQItemSelection>,
     pub filter_edited: QBox<SlotNoArgs>,
     pub change_caste: QBox<SlotNoArgs>,
-    pub change_icon: QBox<SlotNoArgs>,
     pub copy_unit: QBox<SlotNoArgs>,
+    pub copy_unit_check: QBox<SlotOfQString>,
+    pub open_variant_editor: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -60,6 +62,7 @@ impl ToolUnitEditorSlots {
                     let filter_index = before.take_at(0).indexes().take_at(0);
                     let index = ui.get_ref_unit_list_filter().map_to_source(filter_index.as_ref());
                     ui.save_from_detailed_view(index.as_ref());
+                    ui.detailed_view_tab_widget.set_enabled(false);
                     ui.copy_button.set_enabled(false);
                 }
 
@@ -68,6 +71,7 @@ impl ToolUnitEditorSlots {
                     let filter_index = after.take_at(0).indexes().take_at(0);
                     let index = ui.get_ref_unit_list_filter().map_to_source(filter_index.as_ref());
                     ui.load_to_detailed_view(index.as_ref());
+                    ui.detailed_view_tab_widget.set_enabled(true);
                     ui.copy_button.set_enabled(true);
                 }
             }
@@ -97,22 +101,38 @@ impl ToolUnitEditorSlots {
             }
         ));
 
-        let change_icon = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let copy_unit = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
-                let key = ui.unit_icon_key_combobox.current_text().to_std_string();
-                ui.load_unit_icon(&HashMap::new(), Some(key));
+                if let Err(error) = ui.load_copy_unit_dialog() {
+                    show_message_warning(&ui.tool.message_widget, error);
+                }
             }
         ));
 
-        let copy_unit = SlotNoArgs::new(ui.tool.get_ref_main_widget(), move || {});
+        let copy_unit_check = SlotOfQString::new(&ui.copy_unit_widget, clone!(
+            ui => move |value| {
+                let model: QPtr<QStandardItemModel> = ui.copy_unit_new_unit_name_combobox.model().static_downcast();
+                let ok_button = ui.copy_unit_button_box.button(q_dialog_button_box::StandardButton::Ok);
+                ok_button.set_enabled(model.find_items_1a(value).is_empty());
+            }
+        ));
+
+        let open_variant_editor = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+            ui => move || {
+                if let Err(error) = ui.open_variant_editor() {
+                    show_message_error(&ui.tool.message_widget, error);
+                }
+            }
+        ));
 
         ToolUnitEditorSlots {
             delayed_updates,
             load_data_to_detailed_view,
             filter_edited,
             change_caste,
-            change_icon,
             copy_unit,
+            copy_unit_check,
+            open_variant_editor
         }
     }
 }

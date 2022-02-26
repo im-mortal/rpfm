@@ -316,7 +316,7 @@ pub fn background_loop() {
             Command::SetDependencyPackFilesList(pack_files) => pack_file_decoded.set_packfiles_list(&pack_files),
 
             // In case we want to check if there is a Dependency Database loaded...
-            Command::IsThereADependencyDatabase => CentralCommand::send_back(&sender, Response::Bool(dependencies.game_has_vanilla_data_loaded())),
+            Command::IsThereADependencyDatabase(include_asskit) => CentralCommand::send_back(&sender, Response::Bool(dependencies.game_has_vanilla_data_loaded(include_asskit))),
 
             // In case we want to create a PackedFile from scratch...
             Command::NewPackedFile(path, new_packed_file) => {
@@ -728,6 +728,16 @@ pub fn background_loop() {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     match schema.get_ref_last_definition_db(&table_name, &dependencies) {
                         Ok(definition) => CentralCommand::send_back(&sender, Response::I32(definition.get_version())),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    }
+                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
+            }
+
+            // In case we want to get the definition of an specific table from the dependency database...
+            Command::GetTableDefinitionFromDependencyPackFile(table_name) => {
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    match schema.get_ref_last_definition_db(&table_name, &dependencies) {
+                        Ok(definition) => CentralCommand::send_back(&sender, Response::Definition(definition.clone())),
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                     }
                 } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }

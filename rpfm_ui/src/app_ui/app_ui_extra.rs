@@ -825,7 +825,13 @@ impl AppUI {
                             }
 
                             if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+
+                                // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                                app_ui.menu_bar_packfile.set_enabled(false);
+
                                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                                app_ui.menu_bar_packfile.set_enabled(true);
                             }
                         }
                     }));
@@ -859,7 +865,13 @@ impl AppUI {
                         }
 
                         if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+
+                            // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                            app_ui.menu_bar_packfile.set_enabled(false);
+
                             DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                            app_ui.menu_bar_packfile.set_enabled(true);
                         }
                     }
                 }));
@@ -892,7 +904,13 @@ impl AppUI {
                         }
 
                         if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+
+                            // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                            app_ui.menu_bar_packfile.set_enabled(false);
+
                             DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                            app_ui.menu_bar_packfile.set_enabled(true);
                         }
                     }
                 }));
@@ -925,7 +943,13 @@ impl AppUI {
                             }
 
                             if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+
+                                // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                                app_ui.menu_bar_packfile.set_enabled(false);
+
                                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                                app_ui.menu_bar_packfile.set_enabled(true);
                             }
                         }
                     }));
@@ -1021,7 +1045,13 @@ impl AppUI {
                                                 }
 
                                                 if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+
+                                                    // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                                                    app_ui.menu_bar_mymod.set_enabled(false);
+
                                                     DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                                                    app_ui.menu_bar_mymod.set_enabled(true);
                                                 }
                                             }
                                         }));
@@ -1843,7 +1873,7 @@ impl AppUI {
                 return show_dialog(&app_ui.main_window, ErrorKind::SchemaNotFound, false);
             }
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase);
+            let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(false));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Bool(it_is) => if !it_is { return show_dialog(&app_ui.main_window, ErrorKind::DependenciesCacheNotGeneratedorOutOfDate, false); },
@@ -2240,7 +2270,15 @@ impl AppUI {
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
         let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-        let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") { packfile_name[0..packfile_name.chars().count() - 5].to_owned() } else { packfile_name };
+        let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
+            let mut packfile_name = packfile_name.to_owned();
+            packfile_name.pop();
+            packfile_name.pop();
+            packfile_name.pop();
+            packfile_name.pop();
+            packfile_name.pop();
+            packfile_name
+        } else { packfile_name };
 
         name_line_edit.set_text(&QString::from_std_str(&packfile_name));
 

@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_lib"
-version = "2.6.4"
+version = "2.6.6"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "RPFM Lib, where all the magic happens."
@@ -49,6 +49,7 @@ serde = "^1.0"
 serde_derive = "^1.0"
 serde_json = "^1.0"
 serde-xml-rs = "^0.5"
+quick-xml = { version = "^0.22", features = ["serialize"] }
 bincode = "^1.1"
 csv = "^1.1"
 ron = "^0.6"

@@ -199,8 +199,10 @@ impl Dependencies {
 
         let mut cache = Self::default();
         cache.build_date = get_current_time();
-        cache.vanilla_cached_packed_files = PackFile::open_all_ca_packfiles()?.get_ref_packed_files_all().par_iter()
-            .filter_map(|x| if let Ok(data) = CachedPackedFile::try_from(*x) { Some((data.get_ref_packed_file_path().to_owned(), data)) } else { None })
+        cache.vanilla_cached_packed_files = PackFile::open_all_ca_packfiles()?.get_ref_packed_files_all()
+            .par_iter()
+            .filter_map(|x| CachedPackedFile::new_from_packed_file(*x).ok())
+            .map(|x| (x.get_ref_packed_file_path().to_owned(), x))
             .collect::<HashMap<String, CachedPackedFile>>();
 
         // This one can fail, leaving the dependencies with only game data.
@@ -307,25 +309,6 @@ impl Dependencies {
         }
     }
 
-    /// This function returns the paths->hash of every file in the dependencies.
-    pub fn get_dependencies_data_hashes_by_path(&self, include_vanilla: bool, include_modded: bool) -> Result<HashMap<&String, &u64>> {
-        if self.needs_updating()? {
-            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
-        } else {
-            let mut cache = HashMap::new();
-
-            if include_vanilla {
-                cache.extend( self.vanilla_cached_packed_files.par_iter().map(|(path, cached_packed_file)| (path, cached_packed_file.get_ref_hash())).collect::<HashMap<&String, &u64>>());
-            }
-
-            if include_modded {
-                cache.extend(self.parent_cached_packed_files.par_iter().map(|(path, cached_packed_file)| (path, cached_packed_file.get_ref_hash())).collect::<HashMap<&String, &u64>>());
-            }
-
-            Ok(cache)
-        }
-    }
-
     /// This function checks if the current Game Selected has a dependencies file created.
     pub fn game_has_dependencies_generated(&self) -> bool {
         let mut file_path = get_config_path().unwrap().join(DEPENDENCIES_FOLDER);
@@ -338,8 +321,12 @@ impl Dependencies {
     /// This function checks if the current Game Selected has the vanilla data loaded in the dependencies.
     ///
     /// TODO: rework this to use the build date, so it's more accurate.
-    pub fn game_has_vanilla_data_loaded(&self) -> bool {
-        !self.vanilla_packed_files_cache.read().unwrap().is_empty()
+    pub fn game_has_vanilla_data_loaded(&self, include_asskit: bool) -> bool {
+        if include_asskit {
+            !self.vanilla_packed_files_cache.read().unwrap().is_empty() && self.game_has_asskit_data_loaded()
+        } else {
+            !self.vanilla_packed_files_cache.read().unwrap().is_empty()
+        }
     }
 
     /// This function checks if the current Game Selected has the asskit data loaded in the dependencies.
@@ -851,6 +838,24 @@ impl Dependencies {
         } else {
             self.parent_cached_folders_cased.contains(&**path)
         }
+    }
+
+    pub fn get_most_relevant_files_by_paths(&self, paths: &[PathType]) -> Vec<PackedFile> {
+        let mut packed_files = vec![];
+
+        for path in paths {
+            if let PathType::File(path) = path {
+
+                if let Ok(packed_file) = self.get_packedfile_from_parent_files(&path) {
+                    packed_files.push(packed_file);
+                }
+                else if let Ok(packed_file) = self.get_packedfile_from_game_files(&path) {
+                    packed_files.push(packed_file);
+                }
+            }
+        }
+
+        packed_files
     }
 }
 

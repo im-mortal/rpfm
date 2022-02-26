@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>452</width>
+    <width>470</width>
     <height>102</height>
    </rect>
   </property>
@@ -15,7 +15,7 @@
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="1" column="2">
-    <widget class="KComboBox" name="copy_unit_new_unit_name_combobox">
+    <widget class="KComboBox" name="new_faction_name_combobox">
      <property name="sizePolicy">
       <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
        <horstretch>0</horstretch>
@@ -23,7 +23,7 @@
       </sizepolicy>
      </property>
      <property name="editable">
-      <bool>true</bool>
+      <bool>false</bool>
      </property>
      <property name="trapReturnKey">
       <bool>true</bool>
@@ -31,14 +31,14 @@
     </widget>
    </item>
    <item row="1" column="0">
-    <widget class="QLabel" name="copy_unit_new_unit_name_label">
+    <widget class="QLabel" name="new_faction_name_label">
      <property name="text">
       <string>TextLabel</string>
      </property>
     </widget>
    </item>
    <item row="2" column="0" colspan="3">
-    <widget class="QDialogButtonBox" name="copy_unit_button_box">
+    <widget class="QDialogButtonBox" name="new_faction_button_box">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
@@ -48,7 +48,7 @@
     </widget>
    </item>
    <item row="0" column="0" colspan="3">
-    <widget class="QLabel" name="copy_unit_instructions_label">
+    <widget class="QLabel" name="new_faction_instructions_label">
      <property name="text">
       <string>TextLabel</string>
      </property>
@@ -66,7 +66,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>copy_unit_button_box</sender>
+   <sender>new_faction_button_box</sender>
    <signal>accepted()</signal>
    <receiver>Dialog</receiver>
    <slot>accept()</slot>
@@ -82,7 +82,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>copy_unit_button_box</sender>
+   <sender>new_faction_button_box</sender>
    <signal>rejected()</signal>
    <receiver>Dialog</receiver>
    <slot>reject()</slot>

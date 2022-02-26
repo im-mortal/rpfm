@@ -126,7 +126,7 @@ pub enum Command {
     SetPackFileType(PFHFileType),
 
     /// This command is used when we want to generate the dependencies cache for a game. It contains the path of the
-    /// source raw db files and the `Raw DB Version` of the currently selected game.
+    /// source raw db files, the `Raw DB Version` of the currently selected game, and if we should has the files or not.
     GenerateDependenciesCache(Option<PathBuf>, i16),
 
     /// This command is used when we want to update the currently loaded Schema with data from the game selected's Assembly Kit.
@@ -161,7 +161,9 @@ pub enum Command {
     UpdateSchemas,
 
     /// This command is used when we want to know if there is a Dependency Database loaded in memory.
-    IsThereADependencyDatabase,
+    ///
+    /// Pass true if you want to ensure the dependencies were built with the AssKit.
+    IsThereADependencyDatabase(bool),
 
     /// This command is used when we want to create a new `PackedFile` inside the currently open `PackFile`.
     ///
@@ -217,6 +219,9 @@ pub enum Command {
 
     /// This command is used when we want to get the version of the table provided that's compatible with the version of the game we currently have installed.
     GetTableVersionFromDependencyPackFile(String),
+
+    /// This command is used when we want to get the definition of the table provided that's compatible with the version of the game we currently have installed.
+    GetTableDefinitionFromDependencyPackFile(String),
 
     /// This command is used when we want to merge multiple compatible tables into one. The contents of this are as follows:
     /// - Vec<Vec<String>>: List of paths to merge.
@@ -480,6 +485,7 @@ pub enum Response {
     HashMapDataSourceHashSetVecString(HashMap<DataSource, HashSet<Vec<String>>>),
     Diagnostics(Diagnostics),
     DiagnosticsVecPackedFileInfo(Diagnostics, Vec<PackedFileInfo>),
+    Definition(Definition)
 }
 
 //-------------------------------------------------------------------------------//
