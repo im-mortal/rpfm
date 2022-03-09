@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -55,6 +55,7 @@ use std::rc::Rc;
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::parse_str_as_bool;
+use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat, Table};
 use rpfm_lib::schema::{Definition, FieldType, Schema, VersionedFile};
@@ -197,6 +198,7 @@ pub struct TableView {
     context_menu_sidebar: QPtr<QAction>,
     context_menu_search: QPtr<QAction>,
     context_menu_cascade_edition: QPtr<QAction>,
+    context_menu_patch_column: QPtr<QAction>,
     smart_delete: QBox<QAction>,
 
     _context_menu_go_to: QBox<QMenu>,
@@ -234,6 +236,7 @@ pub struct TableView {
     packed_file_type: Arc<PackedFileType>,
     table_definition: Arc<RwLock<Definition>>,
     dependency_data: Arc<RwLock<BTreeMap<i32, DependencyData>>>,
+    banned_table: bool,
 
     pub save_lock: Arc<AtomicBool>,
     pub undo_lock: Arc<AtomicBool>,
@@ -329,7 +332,6 @@ impl TableView {
             table_view_frozen.vertical_header().set_default_section_size(22);
         }
 
-        let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
 
         // Create the filter's widgets.
         let filter_base_widget = QWidget::new_1a(parent);
@@ -338,10 +340,16 @@ impl TableView {
         // Add everything to the grid.
         let layout: QPtr<QGridLayout> = parent.layout().static_downcast();
 
+        let mut banned_table = false;
         if let PackedFileType::DependencyPackFilesList = packed_file_type {
+            let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
             layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
-        } else {
-            warning_message.set_visible(false);
+        } else if let PackedFileType::DB = packed_file_type {
+            banned_table = GAME_SELECTED.read().unwrap().is_packedfile_banned(&["db".to_owned(), table_name_for_ref]);
+            if banned_table {
+                let warning_message = QLabel::from_q_string_q_widget(&qtr("banned_tables_warning"), parent);
+                layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
+            }
         }
 
         let table_status_bar = QWidget::new_1a(parent);
@@ -387,6 +395,7 @@ impl TableView {
         let context_menu_sidebar = context_menu.add_action_q_string(&qtr("context_menu_sidebar"));
 
         let context_menu_cascade_edition = context_menu.add_action_q_string(&qtr("context_menu_cascade_edition"));
+        let context_menu_patch_column = context_menu.add_action_q_string(&qtr("context_menu_patch_column"));
 
         let context_menu_undo = context_menu.add_action_q_string(&qtr("context_menu_undo"));
         let context_menu_redo = context_menu.add_action_q_string(&qtr("context_menu_redo"));
@@ -569,6 +578,7 @@ impl TableView {
             context_menu_sidebar,
             context_menu_search,
             context_menu_cascade_edition,
+            context_menu_patch_column,
             smart_delete,
 
             _context_menu_go_to: context_menu_go_to,
@@ -606,6 +616,7 @@ impl TableView {
             data_source,
             packed_file_path: packed_file_path.clone(),
             packed_file_type: Arc::new(packed_file_type),
+            banned_table,
 
             undo_lock,
             save_lock,
@@ -664,6 +675,9 @@ impl TableView {
 
         // Update the line counter.
         packed_file_table_view.update_line_counter();
+
+        // This fixes some weird issues on first click.
+        packed_file_table_view.context_menu_update();
 
         Ok(packed_file_table_view)
     }
@@ -896,6 +910,11 @@ impl TableView {
     /// This function returns a pointer to the cascade edition action.
     pub fn get_mut_ptr_context_menu_cascade_edition(&self) -> &QPtr<QAction> {
         &self.context_menu_cascade_edition
+    }
+
+    /// This function returns a pointer to the patch column action.
+    pub fn get_mut_ptr_context_menu_patch_column(&self) -> &QPtr<QAction> {
+        &self.context_menu_patch_column
     }
 
     /// This function returns a pointer to the go to definition action.

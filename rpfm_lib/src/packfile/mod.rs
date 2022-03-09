@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -1699,14 +1699,13 @@ impl PackFile {
     ///
     /// NOTE: This may change the PFHVersion of this PackFile too.
     pub fn set_pfh_file_type(&mut self, pfh_file_type: PFHFileType) {
+        self.pfh_file_type = pfh_file_type;
 
         // Make sure the current PFHVersion of this PackFile is compatible with the new PFHFileType.
         let pfh_version = GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(self.get_pfh_file_type());
         if pfh_version != self.get_pfh_version() {
             self.set_pfh_version(pfh_version);
         }
-
-        self.pfh_file_type = pfh_file_type;
     }
 
     /// This function returns the `Bitmask` of the provided `PackFile`.
@@ -2897,21 +2896,25 @@ impl PackFile {
             }
         }
 
-        // Save notes, if needed.
-        if let Some(note) = &self.notes {
+        // Only do this in non-vanilla files.
+        if self.pfh_file_type == PFHFileType::Mod || self.pfh_file_type == PFHFileType::Movie {
+
+            // Save notes, if needed.
+            if let Some(note) = &self.notes {
+                let mut data = vec![];
+                data.encode_string_u8(note);
+                let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_NOTES.to_owned()], self.get_file_name(), 0, false, data);
+                let packed_file = PackedFile::new_from_raw(&raw_data);
+                self.packed_files.push(packed_file);
+            }
+
+            // Saving PackFile settings.
             let mut data = vec![];
-            data.encode_string_u8(note);
-            let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_NOTES.to_owned()], self.get_file_name(), 0, false, data);
+            data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
+            let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_SETTINGS.to_owned()], self.get_file_name(), 0, false, data);
             let packed_file = PackedFile::new_from_raw(&raw_data);
             self.packed_files.push(packed_file);
         }
-
-        // Saving PackFile settings.
-        let mut data = vec![];
-        data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
-        let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_SETTINGS.to_owned()], self.get_file_name(), 0, false, data);
-        let packed_file = PackedFile::new_from_raw(&raw_data);
-        self.packed_files.push(packed_file);
 
         // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
         // So, to fix it, we have to sort all the PackedFiles here by path.
@@ -3050,7 +3053,8 @@ impl Manifest {
             .quoting(false)
             .has_headers(false)
             .flexible(true)
-            .from_path(&manifest_path)?;
+            .from_path(&manifest_path)
+            .map_err(|_| Error::from(ErrorKind::GameManifestNotFound))?;
 
         // Due to "flexible" not actually working when doing serde-backed deserialization (took some time to figure this out)
         // the deserialization has to be done manually.

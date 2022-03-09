@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -114,7 +114,7 @@ const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 26] = [
 ];
 
 /// List of shortcuts for the Table PackedFile's Contextual Menu.
-const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 31] = [
+const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 32] = [
     ("add_row", "Ctrl+Shift+A"),
     ("insert_row", "Ctrl+I"),
     ("delete_row", "Ctrl+Del"),
@@ -147,6 +147,7 @@ const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 31] = [
     ("shortcut_tab_prev", "Ctrl+Shift+Tab"),
     ("shortcut_tab_next", "Ctrl+Tab"),
     ("shortcut_import_from_dependencies", ""),
+    ("shortcut_toggle_tips", ""),
 ];
 
 /// List of shortcuts for the Table Decoder.

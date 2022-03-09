@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -150,6 +150,16 @@ fn test_encode_float_f64() {
     let mut data = vec![];
     data.encode_float_f64(-10.2);
     assert_eq!(data, vec![102, 102, 102, 102, 102, 102, 36, 192]);
+}
+
+/// Test to make sure the u32 integer encoder (`encode_integer_colour_rgb()`) works properly.
+#[test]
+fn test_encode_integer_colour_rgb() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_integer_colour_rgb(75392);
+    assert_eq!(data, vec![0x80, 0x26, 0x01, 0x00]);
 }
 
 /// Test to make sure the u8 string encoder (`encode_string_u8()`) works properly.

@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -20,6 +20,7 @@ use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDialog;
 use qt_widgets::QFileDialog;
+use qt_widgets::QGridLayout;
 use qt_widgets::QLineEdit;
 use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QPushButton;
@@ -57,6 +58,7 @@ use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::MYMOD_BASE_PATH;
+use rpfm_lib::tips::APIResponseTips;
 use rpfm_lib::updater::{APIResponse, CHANGELOG_FILE};
 
 use super::AppUI;
@@ -80,7 +82,7 @@ use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
-use crate::utils::{create_grid_layout, get_packed_file_type, show_dialog, show_dialog_decode_button};
+use crate::utils::{create_grid_layout, get_packed_file_type, show_dialog, show_dialog_decode_button, log_to_status_bar};
 
 #[cfg(feature = "support_rigidmodel")]
 use crate::packedfile_views::rigidmodel::*;
@@ -350,6 +352,7 @@ impl AppUI {
                     // NOTE: Arena should never be here.
                     // Change the Game Selected in the UI.
                     match game_folder {
+                        KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                         KEY_TROY => app_ui.game_selected_troy.trigger(),
                         KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
                         KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
@@ -377,7 +380,7 @@ impl AppUI {
                     let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
                     match ui_data.pfh_version {
 
-                        // PFH6 is for Troy.
+                        // PFH6 is for Troy and maybe WH3.
                         PFHVersion::PFH6 => {
 
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
@@ -398,15 +401,16 @@ impl AppUI {
                                 app_ui.game_selected_arena.trigger();
                             }
 
-                            // Otherwise, it's from Three Kingdoms or Warhammer 2.
+                            // Otherwise, it's from Three Kingdoms, Warhammer 2, Troy or Warhammer 3.
                             else {
                                 match &*game_selected {
+                                    KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                                     KEY_TROY => app_ui.game_selected_troy.trigger(),
                                     KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
                                     KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
                                     _ => {
-                                        show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_2]), true);
-                                        app_ui.game_selected_warhammer_2.trigger();
+                                        show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_3]), true);
+                                        app_ui.game_selected_warhammer_3.trigger();
                                     }
                                 }
                             }
@@ -636,6 +640,10 @@ impl AppUI {
 
             // Check the Game Selected and enable the actions corresponding to out game.
             match &*game_selected {
+                KEY_WARHAMMER_3 => {
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
+                    app_ui.special_stuff_wh3_optimize_packfile.set_enabled(true);
+                },
                 KEY_TROY => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_troy_optimize_packfile.set_enabled(true);
@@ -688,6 +696,10 @@ impl AppUI {
             // Universal Actions.
             app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
 
+            // Disable Warhammer 3 actions...
+            app_ui.special_stuff_wh3_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(false);
+
             // Disable Troy actions...
             app_ui.special_stuff_troy_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_troy_generate_dependencies_cache.set_enabled(false);
@@ -734,6 +746,10 @@ impl AppUI {
         // The assembly kit thing should only be available for Rome 2 and later games.
         // And dependencies generation should be enabled for the current game.
         match &*game_selected {
+            KEY_WARHAMMER_3 => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
+                app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(true);
+            },
             KEY_TROY => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
                 app_ui.special_stuff_troy_generate_dependencies_cache.set_enabled(true);
@@ -976,6 +992,7 @@ impl AppUI {
     ) {
 
         // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
+        app_ui.mymod_open_warhammer_3.menu_action().set_visible(false);
         app_ui.mymod_open_troy.menu_action().set_visible(false);
         app_ui.mymod_open_three_kingdoms.menu_action().set_visible(false);
         app_ui.mymod_open_warhammer_2.menu_action().set_visible(false);
@@ -987,6 +1004,7 @@ impl AppUI {
         app_ui.mymod_open_napoleon.menu_action().set_visible(false);
         app_ui.mymod_open_empire.menu_action().set_visible(false);
 
+        app_ui.mymod_open_warhammer_3.clear();
         app_ui.mymod_open_troy.clear();
         app_ui.mymod_open_three_kingdoms.clear();
         app_ui.mymod_open_warhammer_2.clear();
@@ -1009,6 +1027,7 @@ impl AppUI {
                         let is_supported = SUPPORTED_GAMES.get_games().iter().filter_map(|x| if x.get_supports_editing() { Some(x.get_game_key_name()) } else { None }).any(|x| x == game_folder_name);
                         if game_folder.path().is_dir() && is_supported {
                             let game_submenu = match &*game_folder_name {
+                                KEY_WARHAMMER_3 => &app_ui.mymod_open_warhammer_3,
                                 KEY_TROY => &app_ui.mymod_open_troy,
                                 KEY_THREE_KINGDOMS => &app_ui.mymod_open_three_kingdoms,
                                 KEY_WARHAMMER_2 => &app_ui.mymod_open_warhammer_2,
@@ -1242,6 +1261,92 @@ impl AppUI {
         }
     }
 
+    /// This function checks if there is any newer version of RPFM's messages released.
+    ///
+    /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
+    pub unsafe fn check_message_updates(app_ui: &Rc<Self>, use_dialog: bool) {
+        let receiver = CENTRAL_COMMAND.send_network(Command::CheckMessageUpdates);
+
+        // Create the dialog to show the response and configure it.
+        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+            q_message_box::Icon::Information,
+            &qtr("update_messages_checker"),
+            &qtr("update_searching"),
+            QFlags::from(q_message_box::StandardButton::Close),
+            &app_ui.main_window,
+        );
+
+        let close_button = dialog.button(q_message_box::StandardButton::Close);
+        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
+        update_button.set_enabled(false);
+
+        dialog.set_modal(true);
+        if use_dialog {
+            dialog.show();
+        }
+
+        // When we get a response, act depending on the kind of response we got.
+        let response_thread = CentralCommand::recv_try(&receiver);
+        let message = match response_thread {
+            Response::APIResponseTips(ref response) => {
+                match response {
+                    APIResponseTips::NewUpdate => {
+                        update_button.set_enabled(true);
+                        qtr("messages_new_update")
+                    }
+                    APIResponseTips::NoUpdate => {
+                        if !use_dialog { return; }
+                        qtr("messages_no_update")
+                    }
+                    APIResponseTips::NoLocalFiles => {
+                        update_button.set_enabled(true);
+                        qtr("update_no_local_messages")
+                    }
+                }
+            }
+
+            Response::Error(error) => {
+                if !use_dialog { return; }
+                qtre("api_response_error", &[&error.to_string()])
+            }
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+        };
+
+        // If we hit "Update", try to update the messages.
+        if use_dialog {
+            dialog.set_text(&message);
+            if dialog.exec() == 0 {
+                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMessages);
+
+                dialog.show();
+                dialog.set_text(&qtr("update_in_prog"));
+                update_button.set_enabled(false);
+                close_button.set_enabled(false);
+
+                let response = CentralCommand::recv_try(&receiver);
+                match response {
+                    Response::Success => {
+                        dialog.set_text(&qtr("messages_update_success"));
+                        close_button.set_enabled(true);
+                    },
+                    Response::Error(error) => {
+                        dialog.set_text(&QString::from_std_str(&error.to_string()));
+                        close_button.set_enabled(true);
+                    }
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
+            }
+        } else {
+            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMessages);
+            let response = CentralCommand::recv_try(&receiver);
+            match response {
+                Response::Success => log_to_status_bar("messages_update_success"),
+                Response::Error(error) => log_to_status_bar(&error.to_string()),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+        }
+    }
+
     /// This function is used to open ANY supported PackedFiles in a DockWidget, docked in the Main Window.
     pub unsafe fn open_packedfile(
         app_ui: &Rc<Self>,
@@ -1340,8 +1445,13 @@ impl AppUI {
                 tab.get_mut_widget().set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
                 tab.set_path(path);
 
+                // Any table banned or from out of our PackFile should not be editable.
                 if let DataSource::PackFile = data_source {
-                    tab.set_is_read_only(false);
+                    if GAME_SELECTED.read().unwrap().is_packedfile_banned(path) {
+                        tab.set_is_read_only(true);
+                    } else {
+                        tab.set_is_read_only(false);
+                    }
                 } else {
                     tab.set_is_read_only(true);
                 }
@@ -1366,6 +1476,11 @@ impl AppUI {
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if data_source == DataSource::PackFile {
@@ -1385,6 +1500,11 @@ impl AppUI {
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if data_source == DataSource::PackFile {
@@ -1403,6 +1523,11 @@ impl AppUI {
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
@@ -1423,6 +1548,11 @@ impl AppUI {
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if data_source == DataSource::PackFile {
@@ -1441,6 +1571,11 @@ impl AppUI {
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
@@ -1461,6 +1596,11 @@ impl AppUI {
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
@@ -1493,6 +1633,11 @@ impl AppUI {
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
@@ -1507,12 +1652,17 @@ impl AppUI {
 
                         // If the file is a Text PackedFile...
                         PackedFileType::Text(_) => {
-                            match PackedFileTextView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                            match PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
@@ -1535,8 +1685,14 @@ impl AppUI {
                                        // Add the file to the 'Currently open' list and make it visible.
                                         app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                         app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                        // Fix the tips view.
+                                        let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                        layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                         let mut open_list = UI_STATE.set_open_packedfiles();
                                         open_list.push(tab);
+
                                         if let Some(packed_file_info) = packed_file_info {
                                             if data_source == DataSource::PackFile {
                                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
@@ -1555,8 +1711,14 @@ impl AppUI {
                                 // Add the file to the 'Currently open' list and make it visible.
                                 app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                 app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                // Fix the tips view.
+                                let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.push(tab);
+
                                 if data_source == DataSource::PackFile {
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                                 }
@@ -1572,8 +1734,14 @@ impl AppUI {
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
+
                                     if let Some(packed_file_info) = packed_file_info {
                                         if data_source == DataSource::PackFile {
                                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
@@ -1591,8 +1759,14 @@ impl AppUI {
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
+
                                     if let Some(packed_file_info) = packed_file_info {
                                         if data_source == DataSource::PackFile {
                                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
@@ -1611,8 +1785,14 @@ impl AppUI {
                                         // Add the file to the 'Currently open' list and make it visible.
                                         app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                         app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                        // Fix the tips view.
+                                        let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                        layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
                                         let mut open_list = UI_STATE.set_open_packedfiles();
                                         open_list.push(tab);
+
                                         if let Some(packed_file_info) = packed_file_info {
                                             if data_source == DataSource::PackFile {
                                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);

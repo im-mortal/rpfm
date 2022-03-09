@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -66,10 +66,10 @@ fn main() {
 
     // If we reached here, execute the commands.
     let result = match matches.subcommand() {
-        ("diagnostic", Some(matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
-        ("packfile", Some(matches)) => commands::command_packfile(&config, matches, packfile),
-        ("table", Some(matches)) => commands::command_table(&config, matches, packfile),
-        ("schema", Some(matches)) => commands::command_schema(&config, matches),
+        Some(("diagnostic", matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
+        Some(("packfile", matches)) => commands::command_packfile(&config, matches, packfile),
+        Some(("table", matches)) => commands::command_table(&config, matches, packfile),
+        Some(("schema", matches)) => commands::command_schema(&config, matches),
         _ => { Ok(()) }
     };
 

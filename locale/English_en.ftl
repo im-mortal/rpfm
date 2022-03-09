@@ -218,6 +218,7 @@ tt_game_selected_open_game_data_folder = Tries to open the currently selected ga
 tt_game_selected_open_game_assembly_kit_folder = Tries to open the currently selected game's Assembly Kit folder (if exists) in the default file manager.
 tt_game_selected_open_config_folder = Tries to open RPFM's config folder, where the config/schemas/ctd reports are.
 
+tt_game_selected_warhammer_3 = Sets 'TW:Warhammer 3' as 'Game Selected'.
 tt_game_selected_troy = Sets 'TW:Troy' as 'Game Selected'.
 tt_game_selected_three_kingdoms = Sets 'TW:Three Kingdoms' as 'Game Selected'.
 tt_game_selected_warhammer_2 = Sets 'TW:Warhammer 2' as 'Game Selected'.
@@ -1150,3 +1151,54 @@ new_colour_variant_instructions = <p>Write the new colour variant key in the inp
 new_colour_variant_name = Colour Variant Key
 
 line_counter = Rows On Filter / On Table: {"{"}{"}"} / {"{"}{"}"}
+new_tip_user = User:
+new_tip_tip = Message:
+new_tip_path = Path:
+new_tip_link = Link:
+new_tip_dialog = New Message
+tip_id = Id:
+tip_author = Author:
+tip_link = Link:
+new_tip = New Message
+tip_edit = Edit Message
+tip_delete = Delete Message
+tip_publish = Publish Message
+toggle_tips = Toggle Messages
+about_check_message_updates = Check Message Updates
+update_messages_checker = Update Message Checker
+messages_new_update = <h4>New messages update available</h4> <p>Do you want to update the messages?</p>
+messages_no_update = <h4>No new message updates available</h4> <p>More luck next time :)</p>
+update_no_local_messages = <p>No downloaded messages found. Do you want to download the latest ones?</p><p><b>NOTE:</b> Messages are little notes beside any file to remember things. They're fully optional, and the downloaded ones may contain tips relative to certain files people discovered that may help you.</p>
+messages_update_success = <h4>Messages updated. New messages may not appear until you restart RPFM.</h4><p>You can continue using RPFM now.</p>
+message_uploaded_correctly = Message uploaded successfully and awaiting moderation.
+
+debug_colour_light_label = Ligh Theme
+debug_colour_dark_label = Dark Theme
+
+debug_colour_local_tip_label = Local
+debug_colour_remote_tip_label = Remote
+banned_tables_warning = <p><b style="color:red;">WARNING: This table is actively check by the game, and changes to it will cause the game to crash. RPFM will not save any edit you make to it, and if you have it edited in your PackFile, it's recomended you delete it</b></p><p></p>
+label_banned_table = Banned Table detected:
+banned_table_explanation = Banned Tables are tables actively check by the game to ensure they haven't been altered. Altering them means your game will crash. Which means... there's not really an use for them on the modding side of things, other than being informative.
+    RPFM can read these tables, but it will not save any editions made to them, and if you have one of them in your PackFile, it's better to just delete them to avoid crashes.
+
+settings_check_message_updates_on_start = Check Message Updates on Start:
+import_schema_patch = Import Schema Patch
+import_schema_patch_title = Import Schema Patch
+import_schema_patch_button = Import Patch
+import_schema_patch_success = Patch imported correctly.
+label_value_cannot_be_empty = Value Cannot be Empty:
+value_cannot_be_empty_explanation = The value of this column cannot be empty. This basically means your game may crash if you leave a value of this column empty.
+    If you think this is a false positive, feel free to submit a schema patch to fix it.
+
+context_menu_patch_column = Patch Column Definition
+new_schema_patch_dialog = Schema Patcher
+schema_patch_instructions = This allows you to submit a patch of the currently selected column in the table.
+
+    Submitted Patches are distributed (if approved) as part of a Schema update.
+
+default_value = Default Value
+not_empty = Cannot Be Empty
+explanation = Explanation
+explanation_placeholder_text = Why this patch is needed. Submissions are anonymous, so patches without explanation will probably be rejected.
+schema_patch_submitted_correctly = Schema Patch submitted correctly.

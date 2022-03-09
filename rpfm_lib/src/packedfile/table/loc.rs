@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -131,7 +131,7 @@ impl Loc {
 
     /// This function returns a valid empty row for this table.
     pub fn get_new_row(&self) -> Vec<DecodedData> {
-        Table::get_new_row(self.get_ref_definition())
+        Table::get_new_row(self.get_ref_definition(), None)
     }
 
     /// This function creates a new `Loc` from a `Vec<u8>`.

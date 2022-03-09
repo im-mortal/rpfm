@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -56,4 +56,6 @@ pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.checkbox_dependencies_cache_could_not_be_loaded.toggled().connect(&slots.toggle_filters);
     ui.checkbox_field_with_path_not_found.toggled().connect(&slots.toggle_filters);
     ui.checkbox_incorrect_game_path.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_banned_table.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_value_cannot_be_empty.toggled().connect(&slots.toggle_filters);
 }

@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -14,6 +14,7 @@ Module containing the ffi functions used for custom widgets.
 
 use qt_widgets::QLabel;
 use qt_widgets::QLayout;
+use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
 use qt_widgets::{QMessageBox, q_message_box};
 use qt_widgets::QTableView;
@@ -57,11 +58,11 @@ use crate::UI_STATE;
 //---------------------------------------------------------------------------//
 
 /// This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
-extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, max_length: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
-pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, is_editable: bool, max_length: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
+pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, is_editable: bool, timer: &Ptr<QTimer>, has_filter: bool) {
     let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
     let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
-    unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), is_editable, max_length, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
+    unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), is_editable, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 /// This function changes the default editor widget for I32/64 cells on tables with a numeric one.
@@ -80,12 +81,20 @@ pub fn new_doublespinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i
     unsafe { new_doublespinbox_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
-/// This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema.
-extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, max_length: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
-pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, max_length: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+/// This function changes the default editor widget for ColourRGB cells, to ensure the provided data is valid for the schema.
+extern "C" { fn new_colour_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
+pub fn new_colour_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
     let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
     let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
-    unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, max_length, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
+    unsafe { new_colour_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
+}
+
+/// This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema.
+extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
+pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+    let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
+    unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 /// This function changes the default delegate for all cell types that doesn't have a specific delegate already.
@@ -94,6 +103,13 @@ pub fn new_generic_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, ti
     let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
     let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
     unsafe { new_generic_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
+}
+
+/// This function changes the default delegate for all items in a Tips ListView.
+extern "C" { fn new_tips_item_delegate(tree_view: *mut QObject, is_dark_theme_enabled: bool, has_filter: bool); }
+pub fn new_tips_item_delegate_safe(tree_view: &Ptr<QObject>, has_filter: bool) {
+    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+    unsafe { new_tips_item_delegate(tree_view.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 
 /// This function changes the default delegate for all items in a TreeView.
@@ -225,6 +241,12 @@ pub fn set_text_safe(document: &QPtr<QWidget>, string: &Ptr<QString>, highlighti
 extern "C" { fn open_text_editor_config(parent: *mut QWidget); }
 pub fn open_text_editor_config_safe(parent: &Ptr<QWidget>) {
     unsafe { open_text_editor_config(parent.as_mut_raw_ptr()) }
+}
+
+/// This function triggers the config dialog for the KTextEditor.
+extern "C" { fn get_text_changed_dummy_widget(parent: *mut QWidget) -> *mut QLineEdit; }
+pub fn get_text_changed_dummy_widget_safe<'a>(parent: &Ptr<QWidget>) -> Ptr<QLineEdit> {
+    unsafe { Ptr::from_raw(get_text_changed_dummy_widget(parent.as_mut_raw_ptr())) }
 }
 
 //---------------------------------------------------------------------------//

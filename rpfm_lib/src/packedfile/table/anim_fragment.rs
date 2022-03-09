@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -27,8 +27,11 @@ use crate::schema::*;
 /// Size of the header of an AnimFragment PackedFile.
 pub const HEADER_SIZE: usize = 0;
 
+/// Base path of an animation table. This is an special type of bin, stored only in this folder.
+pub const BASE_PATH: [&str; 1] = ["animations"];
+
 /// Extension of AnimFragment PackedFiles.
-pub const EXTENSION: &str = ".frg";
+pub const EXTENSIONS: [&str; 2] = [".frg", ".bin"];
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs

@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -22,11 +22,14 @@
 )]
 
 use lazy_static::lazy_static;
+use sentry::ClientInitGuard;
 
 use std::sync::{Arc, RwLock};
 
 use crate::games::{GameInfo, supported_games::{SupportedGames, KEY_THREE_KINGDOMS}};
+use crate::logger::Logger;
 use crate::packedfile::table::db::DB;
+use crate::schema::patch::SchemaPatches;
 use crate::schema::Schema;
 use crate::settings::Settings;
 
@@ -41,6 +44,7 @@ pub mod packedfile;
 pub mod packfile;
 pub mod schema;
 pub mod settings;
+pub mod tips;
 pub mod updater;
 
 // Statics, so we don't need to pass them everywhere to use them.
@@ -64,6 +68,10 @@ lazy_static! {
 
     /// Currently loaded schema.
     pub static ref SCHEMA: Arc<RwLock<Option<Schema>>> = Arc::new(RwLock::new(None));
+    pub static ref SCHEMA_PATCHES: Arc<RwLock<SchemaPatches>> = Arc::new(RwLock::new(SchemaPatches::default()));
+
+    /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
+    pub static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init().unwrap()));
 }
 
 pub const DOCS_BASE_URL: &str = "https://frodo45127.github.io/rpfm/";

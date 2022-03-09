@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -100,6 +100,7 @@ pub struct UI {
 
 /// This struct is used to hold all the Icons used for the window's titlebar.
 pub struct GameSelectedIcons {
+    pub warhammer_3: (AtomicPtr<QIcon>, String),
     pub troy: (AtomicPtr<QIcon>, String),
     pub three_kingdoms: (AtomicPtr<QIcon>, String),
     pub warhammer_2: (AtomicPtr<QIcon>, String),
@@ -181,6 +182,11 @@ impl UI {
         let mut colour_dark_diagnostic_warning = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_warning")).to_string());
         let mut colour_dark_diagnostic_info = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_info")).to_string());
 
+        let mut colour_light_local_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_local_tip")).to_string());
+        let mut colour_light_remote_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_remote_tip")).to_string());
+        let mut colour_dark_local_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_local_tip")).to_string());
+        let mut colour_dark_remote_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_remote_tip")).to_string());
+
         if !colour_light_table_added.is_valid() {
             colour_light_table_added = QColor::from_q_string(&QString::from_std_str("#87ca00"));
             q_settings.set_value(&QString::from_std_str("colour_light_table_added"), &QVariant::from_q_string(&colour_light_table_added.name_1a(NameFormat::HexArgb)));
@@ -241,6 +247,30 @@ impl UI {
             sync_needed = true;
         }
 
+        if !colour_light_local_tip.is_valid() {
+            colour_light_local_tip = QColor::from_q_string(&QString::from_std_str("#363636"));
+            q_settings.set_value(&QString::from_std_str("colour_light_local_tip"), &QVariant::from_q_string(&colour_light_local_tip.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_light_remote_tip.is_valid() {
+            colour_light_remote_tip = QColor::from_q_string(&QString::from_std_str("#7e7e7e"));
+            q_settings.set_value(&QString::from_std_str("colour_light_remote_tip"), &QVariant::from_q_string(&colour_light_remote_tip.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_dark_local_tip.is_valid() {
+            colour_dark_local_tip = QColor::from_q_string(&QString::from_std_str("#363636"));
+            q_settings.set_value(&QString::from_std_str("colour_dark_local_tip"), &QVariant::from_q_string(&colour_dark_local_tip.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_dark_remote_tip.is_valid() {
+            colour_dark_remote_tip = QColor::from_q_string(&QString::from_std_str("#7e7e7e"));
+            q_settings.set_value(&QString::from_std_str("colour_dark_remote_tip"), &QVariant::from_q_string(&colour_dark_remote_tip.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
         if sync_needed {
             q_settings.sync();
         }
@@ -251,6 +281,7 @@ impl UI {
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
         info!("Setting initial Game Selected…");
         match &*SETTINGS.read().unwrap().settings_string["default_game"] {
+            KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.set_checked(true),
             KEY_TROY => app_ui.game_selected_troy.set_checked(true),
             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
             KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.set_checked(true),
@@ -264,8 +295,8 @@ impl UI {
             KEY_ARENA  => app_ui.game_selected_arena.set_checked(true),
 
             // Turns out some... lets say "not very bright individual" changed the settings file manually and broke this.
-            // So just in case, by default we use WH2.
-            _ => app_ui.game_selected_warhammer_2.set_checked(true),
+            // So just in case, by default we use WH3.
+            _ => app_ui.game_selected_warhammer_3.set_checked(true),
         }
         AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
         info!("Initial Game Selected set to {}.", SETTINGS.read().unwrap().settings_string["default_game"]);
@@ -343,6 +374,9 @@ impl UI {
         // If we have it enabled in the prefs, check if there are schema updates.
         if SETTINGS.read().unwrap().settings_bool["check_schema_updates_on_start"] { AppUI::check_schema_updates(&app_ui, false) };
 
+        // TODO: Put this behind a setting.
+        AppUI::check_message_updates(&app_ui, false);
+
         // Clean up folders from previous updates, if they exist.
         if !cfg!(debug_assertions) {
             if let Ok(folders) = read_dir(&*RPFM_PATH) {
@@ -394,6 +428,7 @@ impl GameSelectedIcons {
     /// This function loads to memory the icons of all the supported games.
     pub unsafe fn new() -> Self {
         Self {
+            warhammer_3: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_3).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_3).unwrap().get_game_selected_icon_big_file_name())),
             troy: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_big_file_name())),
             three_kingdoms: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_big_file_name())),
             warhammer_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_2).unwrap().get_game_selected_icon_big_file_name())),
@@ -411,6 +446,7 @@ impl GameSelectedIcons {
     /// This function sets the main window icon according to the currently selected game.
     pub unsafe fn set_game_selected_icon(app_ui: &Rc<AppUI>) {
         let (icon, big_icon) = match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
+            KEY_WARHAMMER_3 => &GAME_SELECTED_ICONS.warhammer_3,
             KEY_TROY => &GAME_SELECTED_ICONS.troy,
             KEY_THREE_KINGDOMS => &GAME_SELECTED_ICONS.three_kingdoms,
             KEY_WARHAMMER_2 => &GAME_SELECTED_ICONS.warhammer_2,

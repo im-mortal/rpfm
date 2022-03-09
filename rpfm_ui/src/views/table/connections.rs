@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -52,6 +52,7 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.get_mut_ptr_context_menu_sidebar().triggered().connect(&slots.sidebar);
     ui.get_mut_ptr_context_menu_search().triggered().connect(&slots.search);
     ui.get_mut_ptr_context_menu_cascade_edition().triggered().connect(&slots.cascade_edition);
+    ui.get_mut_ptr_context_menu_patch_column().triggered().connect(&slots.patch_column);
     ui.get_mut_ptr_context_menu_go_to_definition().triggered().connect(&slots.go_to_definition);
     ui.get_mut_ptr_smart_delete().triggered().connect(&slots.smart_delete);
 

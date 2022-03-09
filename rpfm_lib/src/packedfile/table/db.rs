@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -181,7 +181,7 @@ impl DB {
 
     /// This function returns a valid empty row for this table.
     pub fn get_new_row(&self) -> Vec<DecodedData> {
-        Table::get_new_row(self.get_ref_definition())
+        Table::get_new_row(self.get_ref_definition(), Some(&self.get_table_name()))
     }
 
     /// This function creates a `DB` from a `Vec<u8>`.
@@ -200,19 +200,32 @@ impl DB {
         if versioned_file.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
 
         // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
+        let index_reset = index;
         let table = if version == 0 {
             let definitions = versioned_file?.get_version_alternatives();
-            let table = definitions.iter().find_map(|definition| {
+            let table: Option<Result<Table>> = definitions.iter().find_map(|definition| {
                 let mut table = Table::new(definition);
-                if table.decode(packed_file_data, entry_count, &mut index, return_incomplete).is_ok() {
-                    Some(table)
+                index = index_reset;
+                let decoded_table = table.decode(packed_file_data, entry_count, &mut index, return_incomplete);
+                if decoded_table.is_ok() {
+                    Some(Ok(table))
+                } else if return_incomplete {
+                    if let Err(error) = decoded_table {
+                        if let ErrorKind::TableIncompleteError(_, _) = error.kind() {
+                            Some(Err(error))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
             });
 
             match table {
-                Some(table) => table,
+                Some(table) => table?,
                 None => return Err(ErrorKind::SchemaDefinitionNotFound.into()),
             }
         }
@@ -285,8 +298,13 @@ impl DB {
                 packed_file.encode_packedfile_string_u16(&format!("{}", Uuid::new_v4()));
             }
         }
-        packed_file.extend_from_slice(VERSION_MARKER);
-        packed_file.encode_integer_i32(self.table.definition.get_version());
+
+        // Only put version numbers on tables with an actual version.
+        if self.table.definition.get_version() > 0 {
+            packed_file.extend_from_slice(VERSION_MARKER);
+            packed_file.encode_integer_i32(self.table.definition.get_version());
+        }
+
         packed_file.encode_bool(self.mysterious_byte);
         packed_file.encode_integer_u32(self.table.entries.len() as u32);
 

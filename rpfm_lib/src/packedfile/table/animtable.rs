@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -29,10 +29,7 @@ use crate::schema::*;
 pub const HEADER_SIZE: usize = 8;
 
 /// Base path of an animation table. This is an special type of bin, stored only in this folder.
-pub const BASE_PATH: [&str; 2] = [
-    "animations",
-    "animation_tables"
-];
+pub const BASE_PATH: [&str; 1] = ["animations"];
 
 pub const EXTENSION: &str = "_tables.bin";
 

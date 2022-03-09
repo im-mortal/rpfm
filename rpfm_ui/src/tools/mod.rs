@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -26,6 +26,7 @@ use qt_widgets::QTextEdit;
 use qt_widgets::QWidget;
 
 use qt_gui::QColor;
+use qt_gui::q_color::NameFormat;
 
 use qt_core::QBox;
 use qt_core::QObject;
@@ -160,7 +161,6 @@ impl Tool {
         }
 
         // Load the UI Template.
-        let template_path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), template_path);
         let main_widget = Self::load_template(parent, &template_path)?;
 
         // Get the common widgets for all tools.
@@ -289,8 +289,9 @@ impl Tool {
 
     /// This function load the template file in the provided path to memory, and returns it as a QBox<QWidget>.
     pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> Result<QBox<QWidget>> {
+        let path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), path);
         let mut data = vec!();
-        let mut file = BufReader::new(File::open(path)?);
+        let mut file = BufReader::new(File::open(&path)?);
         file.read_to_end(&mut data)?;
 
         let ui_loader = QUiLoader::new_0a();
@@ -310,7 +311,7 @@ impl Tool {
     /// For local use when no Tool has yet been created.
     unsafe fn find_widget_no_tool<T: StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<QWidget>, widget_name: &str) -> Result<QPtr<T>>
         where QObject: DynamicCast<T> {
-        main_widget.find_child(widget_name).map_err(|_| ErrorKind::TemplateUIWidgetNotFound(widget_name.to_owned()).into())
+        crate::utils::find_widget(main_widget, widget_name)
     }
 
     /// This function gets the data needed for the tool from a DB table in a generic way.
@@ -458,7 +459,7 @@ impl Tool {
         Ok(table_to_return)
     }
 
-    /// This function takes care of saving a DB table in a generic way into a PackedFile.wh_main_teb_cha_captain_0
+    /// This function takes care of saving a DB table in a generic way into a PackedFile.
     ///
     /// Useful for tables of which we can modify any of its columns. If you need to only change some of their columns, use a custom function.
     ///
@@ -730,7 +731,7 @@ impl Tool {
                                         match data.get(&field_key_name) {
                                             Some(data) => widget.set_current_text(&QString::from_std_str(data)),
                                             None => {
-                                                if let Some(default_value) = field.get_default_value() {
+                                                if let Some(default_value) = field.get_default_value(None) {
                                                     widget.set_current_text(&QString::from_std_str(default_value));
                                                 }
                                             }
@@ -758,7 +759,7 @@ impl Tool {
                                                         }
                                                     },
                                                     None => {
-                                                        if let Some(default_value) = field.get_default_value() {
+                                                        if let Some(default_value) = field.get_default_value(None) {
                                                             if let Ok(value) = default_value.parse::<bool>() {
                                                                 widget.set_checked(value);
                                                             }
@@ -790,7 +791,7 @@ impl Tool {
                                                         }
                                                     },
                                                     None => {
-                                                        if let Some(default_value) = field.get_default_value() {
+                                                        if let Some(default_value) = field.get_default_value(None) {
                                                             if let Ok(value) = default_value.parse::<i32>() {
                                                                 widget.set_value(value);
                                                             }
@@ -820,7 +821,7 @@ impl Tool {
                                                         }
                                                     },
                                                     None => {
-                                                        if let Some(default_value) = field.get_default_value() {
+                                                        if let Some(default_value) = field.get_default_value(None) {
                                                             if let Ok(value) = default_value.parse::<f64>() {
                                                                 widget.set_value(value);
                                                             }
@@ -845,7 +846,7 @@ impl Tool {
                                                 match data.get(&field_key_name) {
                                                     Some(data) => widget.set_text(&QString::from_std_str(data)),
                                                     None => {
-                                                        if let Some(default_value) = field.get_default_value() {
+                                                        if let Some(default_value) = field.get_default_value(None) {
                                                             widget.set_text(&QString::from_std_str(default_value));
                                                         }
                                                     }
@@ -959,15 +960,15 @@ impl Tool {
     unsafe fn load_fields_to_detailed_view_editor_combo_color(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QComboBox>, field_name: &str) -> Option<String> {
         let mut failed = false;
 
-        let colour_split = match processed_data.get(field_name) {
-            Some(color_parts) => color_parts.split(',').map(|x| x.parse().unwrap_or(0)).collect::<Vec<i32>>(),
+        let colour = match processed_data.get(field_name) {
+            Some(colour) => format!("#{}", colour),
             None => {
                 failed = true;
-                vec![0, 0, 0]
+                format!("#000000")
             }
         };
 
-        set_color_safe(&field_editor.as_ptr().static_upcast(), &QColor::from_rgb_3a(colour_split[0], colour_split[1], colour_split[2]).as_ptr());
+        set_color_safe(&field_editor.as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(colour)).as_ptr());
 
         if failed {
             Some(field_name.to_owned())
@@ -1158,7 +1159,11 @@ impl Tool {
     #[allow(dead_code)]
     unsafe fn save_fields_from_detailed_view_editor_combo_color(&self, data: &mut HashMap<String, String>, field_editor: &QPtr<QComboBox>, field_name: &str) {
         let colour = get_color_safe(&field_editor.as_ptr().static_upcast());
-        data.insert(field_name.to_owned(), format!("{},{},{}", colour.red(), colour.green(), colour.blue()));
+        let mut colour_name = colour.name_1a(NameFormat::HexRgb).to_std_string();
+        if colour_name.starts_with("#") {
+            colour_name.remove(0);
+        }
+        data.insert(field_name.to_owned(), colour_name);
     }
 
     /// This function tries to save data from a KColorCombo into three R,G,B fields.

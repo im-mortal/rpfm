@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -61,6 +61,7 @@ pub struct RawTableField {
 
     #[serde(rename = "$value")]
     pub field_data: String,
+    pub state: Option<String>,
 }
 
 //---------------------------------------------------------------------------//
@@ -119,7 +120,7 @@ impl RawTable {
                     let field_name_regex = Regex::new(&format!("\n<{}>", field.name)).unwrap();
                     let field_name_regex2 = Regex::new(&format!("\n<{} .+?\">", field.name)).unwrap();
                     buffer = field_name_regex.replace_all(&buffer, &*format!("\n<datafield field_name=\"{}\">", field.name)).to_string();
-                    buffer = field_name_regex2.replace_all(&buffer, &*format!("\n<datafield field_name=\"{}\">", field.name)).to_string();
+                    buffer = field_name_regex2.replace_all(&buffer, &*format!("\n<datafield field_name=\"{}\" state=\"1\">", field.name)).to_string();
                     buffer = buffer.replace(&format!("</{}>", field.name), "</datafield>");
                 }
 

@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -391,6 +391,18 @@ impl Diagnostics {
                 }
             }
 
+            // Check if it's one of the banned tables for the game selected.
+            if !Self::ignore_diagnostic(None, Some("BannedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if GAME_SELECTED.read().unwrap().is_packedfile_banned(&["db".to_owned(), table.get_table_name()]) {
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                        cells_affected: vec![],
+                        message: "Banned table.".to_owned(),
+                        report_type: TableDiagnosticReportType::BannedTable,
+                        level: DiagnosticLevel::Error,
+                    });
+                }
+            }
+
             // Check if the table name has a number at the end, which causes very annoying bugs.
             if let Some(name) = path.last() {
                 if !Self::ignore_diagnostic(None, Some("TableNameEndsInNumber"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
@@ -593,6 +605,17 @@ impl Diagnostics {
                                 message: format!("Empty key for column \"{}\".", field.get_name()),
                                 report_type: TableDiagnosticReportType::EmptyKeyField,
                                 level: DiagnosticLevel::Warning,
+                            });
+                        }
+                    }
+
+                    if !Self::ignore_diagnostic(Some(field.get_name()), Some("ValueCannotBeEmpty"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                        if field.get_cannot_be_empty(Some(table.get_ref_table_name())) && cell_data.is_empty() {
+                            diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                cells_affected: vec![(row as i32, column as i32)],
+                                message: format!("Empty value for column \"{}\".", field.get_name()),
+                                report_type: TableDiagnosticReportType::ValueCannotBeEmpty,
+                                level: DiagnosticLevel::Error,
                             });
                         }
                     }

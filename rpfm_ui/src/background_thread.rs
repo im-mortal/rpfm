@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -41,10 +41,12 @@ use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use rpfm_lib::packedfile::text::{Text, TextType};
 use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::{PackedFile, PackedFileInfo, RawPackedFile}, PathType, PFHFlags, RESERVED_NAME_NOTES};
-use rpfm_lib::schema::*;
+use rpfm_lib::schema::{*, patch::SchemaPatches};
 use rpfm_lib::SCHEMA;
+use rpfm_lib::SCHEMA_PATCHES;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
+use rpfm_lib::tips::Tips;
 
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
@@ -71,6 +73,14 @@ pub fn background_loop() {
 
     // Preload the default game's dependencies.
     let mut dependencies = Dependencies::default();
+
+    // Load all the tips we have.
+    let mut tips = if let Ok(tips) = Tips::load() { tips } else { Tips::default() };
+
+    // Try to load the schema patchs. Ignore them if fails due to missing file.
+    if let Ok(schema_patches) = SchemaPatches::load() {
+        *SCHEMA_PATCHES.write().unwrap() = schema_patches;
+    }
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -725,22 +735,26 @@ pub fn background_loop() {
 
             // In case we want to get the version of an specific table from the dependency database...
             Command::GetTableVersionFromDependencyPackFile(table_name) => {
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    match schema.get_ref_last_definition_db(&table_name, &dependencies) {
-                        Ok(definition) => CentralCommand::send_back(&sender, Response::I32(definition.get_version())),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                    }
-                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
+                if dependencies.game_has_vanilla_data_loaded(false) {
+                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                        match schema.get_ref_last_definition_db(&table_name, &dependencies) {
+                            Ok(definition) => CentralCommand::send_back(&sender, Response::I32(definition.get_version())),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        }
+                    } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
+                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into())); }
             }
 
             // In case we want to get the definition of an specific table from the dependency database...
             Command::GetTableDefinitionFromDependencyPackFile(table_name) => {
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    match schema.get_ref_last_definition_db(&table_name, &dependencies) {
-                        Ok(definition) => CentralCommand::send_back(&sender, Response::Definition(definition.clone())),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                    }
-                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
+                if dependencies.game_has_vanilla_data_loaded(false) {
+                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                        match schema.get_ref_last_definition_db(&table_name, &dependencies) {
+                            Ok(definition) => CentralCommand::send_back(&sender, Response::Definition(definition.clone())),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        }
+                    } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
+                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into())); }
             }
 
             // In case we want to merge DB or Loc Tables from a PackFile...
@@ -1072,6 +1086,11 @@ pub fn background_loop() {
                             pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(schema); });
                         }
 
+                        // Try to reload the schema patchs. Ignore them if fails due to missing file.
+                        if let Ok(schema_patches) = SchemaPatches::load() {
+                            *SCHEMA_PATCHES.write().unwrap() = schema_patches;
+                        }
+
                         // Then rebuild the dependencies stuff.
                         if dependencies.game_has_dependencies_generated() {
                             match dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false) {
@@ -1085,6 +1104,16 @@ pub fn background_loop() {
                             CentralCommand::send_back(&sender, Response::Success);
                         }
                     },
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            // When we want to update our messages...
+            Command::UpdateMessages => {
+
+                // TODO: Properly reload all loaded tips.
+                match Tips::update_from_repo() {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
@@ -1466,8 +1495,52 @@ pub fn background_loop() {
                 }
             },
 
+            Command::GetTipsForPath(path) => {
+                let local_tips = tips.get_local_tips_for_path(&path);
+                let remote_tips = tips.get_remote_tips_for_path(&path);
+                CentralCommand::send_back(&sender, Response::VecTipVecTip(local_tips, remote_tips));
+            }
+
+            Command::AddTipToLocalTips(tip) => {
+                tips.add_tip_to_local_tips(tip);
+                match tips.save() {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            Command::DeleteTipById(id) => {
+                tips.delete_tip_by_id(id);
+                match tips.save() {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            Command::PublishTipById(id) => {
+                match tips.publish_tip_by_id(id) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            Command::UploadSchemaPatch(patch) => {
+                match patch.upload() {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            Command::ImportSchemaPatch(patch) => {
+                match SCHEMA_PATCHES.write().unwrap().import(patch) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+
             // These two belong to the network thread, not to this one!!!!
-            Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
     }
 }

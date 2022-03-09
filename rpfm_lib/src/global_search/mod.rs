@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -185,8 +185,8 @@ impl GlobalSearch {
                         let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Text(TextType::Plain), false);
                         self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                Some(self.search_on_text(&path, data, &matching_mode))
+                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_cache_no_locks(schema) {
+                                Some(self.search_on_text(&path, &data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -218,8 +218,8 @@ impl GlobalSearch {
                         if let Ok(mut packed_files) = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::Text(TextType::Plain)], false) {
                             self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                                 let path = packed_file.get_path().to_vec();
-                                if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                    Some(self.search_on_text(&path, data, &matching_mode))
+                                if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_cache_no_locks(schema) {
+                                    Some(self.search_on_text(&path, &data, &matching_mode))
                                 } else { None }
                             }).collect();
                         }
@@ -252,8 +252,8 @@ impl GlobalSearch {
                         if let Ok(mut packed_files) = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::Text(TextType::Plain)], false) {
                             self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                                 let path = packed_file.get_path().to_vec();
-                                if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                    Some(self.search_on_text(&path, data, &matching_mode))
+                                if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_cache_no_locks(schema) {
+                                    Some(self.search_on_text(&path, &data, &matching_mode))
                                 } else { None }
                             }).collect();
                         }
@@ -538,6 +538,11 @@ impl GlobalSearch {
                         self.replace_match(&mut string, matching_mode);
                         *field = string.parse::<f32>()?;
                     }
+                    DecodedData::F64(ref mut field) => {
+                        let mut string = field.to_string();
+                        self.replace_match(&mut string, matching_mode);
+                        *field = string.parse::<f64>()?;
+                    }
                     DecodedData::I16(ref mut field) => {
                         let mut string = field.to_string();
                         self.replace_match(&mut string, matching_mode);
@@ -552,6 +557,11 @@ impl GlobalSearch {
                         let mut string = field.to_string();
                         self.replace_match(&mut string, matching_mode);
                         *field = string.parse::<i64>()?;
+                    }
+                    DecodedData::ColourRGB(ref mut field) => {
+                        let mut string = field.to_string();
+                        self.replace_match(&mut string, matching_mode);
+                        *field = string.parse::<u32>()?;
                     }
                     DecodedData::StringU8(ref mut field) |
                     DecodedData::StringU16(ref mut field) |
@@ -605,9 +615,11 @@ impl GlobalSearch {
                         self.match_decoded_data(text, matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64);
                     }
                     DecodedData::F32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::F64(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I16(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I64(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::ColourRGB(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
 
                     DecodedData::StringU8(ref data) |
                     DecodedData::StringU16(ref data) |
@@ -633,9 +645,11 @@ impl GlobalSearch {
                         self.match_decoded_data(text, matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64);
                     }
                     DecodedData::F32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::F64(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I16(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I64(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::ColourRGB(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
 
                     DecodedData::StringU8(ref data) |
                     DecodedData::StringU16(ref data) |

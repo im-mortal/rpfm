@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -71,6 +71,7 @@ impl DebugView {
         layout.add_widget_5a(&save_button, 2, 0, 1, 1);
 
         let (packed_file_type, text) = match packed_file {
+            DecodedPackedFile::AnimFragment(data) => (PackedFileType::AnimFragment, serde_json::to_string_pretty(&data)?),
             DecodedPackedFile::UnitVariant(data) => (PackedFileType::UnitVariant, serde_json::to_string_pretty(&data)?),
             DecodedPackedFile::ESF(data) => (PackedFileType::ESF, serde_json::to_string_pretty(&data)?),
             _ => unimplemented!(),
@@ -96,6 +97,7 @@ impl DebugView {
         let string = get_text_safe(&self.editor).to_std_string();
 
         let decoded_packed_file = match self.packed_file_type {
+            PackedFileType::AnimFragment => DecodedPackedFile::AnimFragment(serde_json::from_str(&string)?),
             PackedFileType::UnitVariant => DecodedPackedFile::UnitVariant(serde_json::from_str(&string)?),
             PackedFileType::ESF => DecodedPackedFile::ESF(serde_json::from_str(&string)?),
             _ => unimplemented!(),

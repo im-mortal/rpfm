@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -28,11 +28,9 @@ use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
 
-use crate::games::*;
 use crate::games::supported_games::*;
 use crate::SETTINGS;
 use crate::SUPPORTED_GAMES;
-use crate::settings::supported_games::KEY_THREE_KINGDOMS;
 use crate::updater::STABLE;
 
 /// Qualifier for the config folder. Only affects MacOS.
@@ -94,7 +92,7 @@ impl Settings {
         }
 
         // General Settings.
-        settings_string.insert("default_game".to_owned(), KEY_THREE_KINGDOMS.to_owned());
+        settings_string.insert("default_game".to_owned(), KEY_WARHAMMER_3.to_owned());
         settings_string.insert("language".to_owned(), "English_en".to_owned());
         settings_string.insert("update_channel".to_owned(), STABLE.to_owned());
         settings_string.insert("autosave_amount".to_owned(), "10".to_owned());
@@ -109,6 +107,7 @@ impl Settings {
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
+        settings_bool.insert("check_message_updates_on_start".to_owned(), false);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
         settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), false);
         settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), true);
@@ -202,11 +201,15 @@ pub fn init_config_path() -> Result<()> {
     let autosaves_path = config_path.join("autosaves");
     let error_path = config_path.join("error");
     let schemas_path = config_path.join("schemas");
+    let tips_local_path = config_path.join("tips/local");
+    let tips_remote_path = config_path.join("tips/remote");
 
     DirBuilder::new().recursive(true).create(&autosaves_path)?;
     DirBuilder::new().recursive(true).create(&config_path)?;
     DirBuilder::new().recursive(true).create(&error_path)?;
     DirBuilder::new().recursive(true).create(&schemas_path)?;
+    DirBuilder::new().recursive(true).create(&tips_local_path)?;
+    DirBuilder::new().recursive(true).create(&tips_remote_path)?;
 
     // Init autosave files if they're not yet initialized. Minimum 1.
     let mut max_autosaves = SETTINGS.read().unwrap().settings_string["autosave_amount"].parse::<i32>().unwrap_or(10);

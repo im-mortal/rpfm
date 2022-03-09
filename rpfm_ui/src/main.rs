@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -40,14 +40,12 @@ use qt_core::QString;
 
 use lazy_static::lazy_static;
 use log::info;
-use sentry::ClientInitGuard;
 
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicPtr}};
+use std::sync::atomic::{AtomicBool, AtomicPtr};
 use std::thread;
 
-use rpfm_lib::logger::Logger;
-use rpfm_lib::SETTINGS;
+use rpfm_lib::{SENTRY_GUARD, SETTINGS};
 
 use crate::app_ui::AppUI;
 use crate::communications::{CentralCommand, Command, Response};
@@ -270,15 +268,12 @@ lazy_static! {
 
     /// Atomic to control if we have performed the initial game selected change or not.
     static ref FIRST_GAME_CHANGE_DONE: AtomicBool = AtomicBool::new(false);
-
-    /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
-    static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init().unwrap()));
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
 /// in two different places in every update.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const VERSION_SUBTITLE: &str = "Old killer";
+const VERSION_SUBTITLE: &str = "I forgot about this message";
 const QT_ORG: &str = "FrodoWazEre";
 const QT_PROGRAM: &str = "rpfm";
 

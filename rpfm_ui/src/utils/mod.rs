@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -30,6 +30,7 @@ use qt_core::SlotNoArgs;
 
 use cpp_core::CppBox;
 use cpp_core::CppDeletable;
+use cpp_core::DynamicCast;
 use cpp_core::Ptr;
 use cpp_core::Ref;
 use cpp_core::StaticUpcast;
@@ -45,7 +46,8 @@ use std::convert::AsRef;
 use std::fmt::Display;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use rpfm_lib::{GAME_SELECTED, packedfile::PackedFileType};
+use rpfm_error::{ErrorKind, Result};
+use rpfm_lib::{GAME_SELECTED, packedfile::PackedFileType, SENTRY_GUARD};
 
 use crate::ASSETS_PATH;
 use crate::CENTRAL_COMMAND;
@@ -58,7 +60,6 @@ use crate::MEDIUM_DARKER_GREY;
 use crate::DARK_GREY;
 use crate::KINDA_WHITY_GREY;
 use crate::EVEN_MORE_WHITY_GREY;
-use crate::SENTRY_GUARD;
 use crate::STATUS_BAR;
 use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
 
@@ -475,4 +476,10 @@ pub fn create_dark_theme_stylesheet() -> String {
         checkbox_bd_off = *KINDA_WHITY_GREY,
         checkbox_bd_hover = *ORANGE
     )
+}
+
+/// This function returns the a widget from the view if it exits, and an error if it doesn't.
+pub unsafe fn find_widget<T: StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<QWidget>, widget_name: &str) -> Result<QPtr<T>>
+    where QObject: DynamicCast<T> {
+    main_widget.find_child(widget_name).map_err(|_| ErrorKind::TemplateUIWidgetNotFound(widget_name.to_owned()).into())
 }

@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -98,7 +98,7 @@ impl GlobalSearchSlots {
         let global_search_check_regex = SlotOfQString::new(&global_search_ui.global_search_dock_widget, clone!(
             global_search_ui => move |string| {
             if global_search_ui.global_search_use_regex_checkbox.is_checked() {
-                check_regex(&string.to_std_string(), global_search_ui.global_search_search_line_edit.static_upcast());
+                check_regex(&string.to_std_string(), global_search_ui.global_search_search_combobox.static_upcast());
             }
         }));
 
@@ -106,9 +106,9 @@ impl GlobalSearchSlots {
         let global_search_check_regex_clean = SlotOfBool::new(&global_search_ui.global_search_dock_widget, clone!(
             global_search_ui => move |is_checked| {
             if is_checked {
-                check_regex(&global_search_ui.global_search_search_line_edit.text().to_std_string(), global_search_ui.global_search_search_line_edit.static_upcast());
+                check_regex(&global_search_ui.global_search_search_combobox.current_text().to_std_string(), global_search_ui.global_search_search_combobox.static_upcast());
             } else {
-                check_regex("", global_search_ui.global_search_search_line_edit.static_upcast());
+                check_regex("", global_search_ui.global_search_search_combobox.static_upcast());
             }
         }));
 
