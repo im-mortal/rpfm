@@ -45,6 +45,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::references_ui::ReferencesUI;
 use crate::views::debug::DebugView;
 use crate::views::table::{TableView, TableType};
 use crate::views::table::utils::get_table_from_view;
@@ -91,7 +92,8 @@ impl PackedFileAnimFragmentView {
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
-        dependencies_ui: &Rc<DependenciesUI>
+        dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>
     ) -> Result<PackedFileInfo> {
 
         // Get the decoded Table.
@@ -169,7 +171,8 @@ impl PackedFileAnimFragmentView {
                 pack_file_contents_ui,
                 diagnostics_ui,
                 dependencies_ui,
-                TableType::AnimFragment(From::from(table_data_1)),
+                references_ui,
+                TableType::AnimFragment(From::from(*table_data_1)),
                 None,
                 packed_file_view.data_source.clone()
             )?;
@@ -181,7 +184,8 @@ impl PackedFileAnimFragmentView {
                 pack_file_contents_ui,
                 diagnostics_ui,
                 dependencies_ui,
-                TableType::AnimFragment(From::from(table_data_2)),
+                references_ui,
+                TableType::AnimFragment(From::from(*table_data_2)),
                 None,
                 packed_file_view.data_source.clone()
             )?;
@@ -238,11 +242,11 @@ impl PackedFileAnimFragmentView {
 
                 // Each table view, we just load them.
                 if let Some(DecodedData::SequenceU32(data)) = data.get(0) {
-                    self.table_view_1.reload_view(TableType::AnimFragment(From::from(data.clone())));
+                    self.table_view_1.reload_view(TableType::AnimFragment(From::from(*data.clone())));
                 }
 
                 if let Some(DecodedData::SequenceU32(data)) = data.get(3) {
-                    self.table_view_2.reload_view(TableType::AnimFragment(From::from(data.clone())));
+                    self.table_view_2.reload_view(TableType::AnimFragment(From::from(*data.clone())));
                 }
 
                 Ok(())
@@ -266,10 +270,10 @@ impl PackedFileAnimFragmentView {
         let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
         let data_2 = get_table_from_view(&table_model, &self.table_view_2.get_ref_table_definition())?;
 
-        data.push(DecodedData::SequenceU32(data_1));
+        data.push(DecodedData::SequenceU32(Box::new(data_1)));
         data.push(i1);
         data.push(i2);
-        data.push(DecodedData::SequenceU32(data_2));
+        data.push(DecodedData::SequenceU32(Box::new(data_2)));
 
         let data = vec![data; 1];
         table.set_table_data(&data)?;

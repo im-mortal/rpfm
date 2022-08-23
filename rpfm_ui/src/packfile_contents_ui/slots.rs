@@ -49,6 +49,7 @@ use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::DataSource;
 use crate::QString;
+use crate::references_ui::ReferencesUI;
 use crate::utils::{show_dialog, check_regex};
 use crate::UI_STATE;
 use crate::ui_state::OperationalMode;
@@ -95,6 +96,7 @@ pub struct PackFileContentsSlots {
 
     pub contextual_menu_tables_merge_tables: QBox<SlotOfBool>,
     pub contextual_menu_tables_update_table: QBox<SlotOfBool>,
+    pub contextual_menu_generate_missing_loc_data: QBox<SlotOfBool>,
 
     pub contextual_menu_mass_import_tsv: QBox<SlotOfBool>,
     pub contextual_menu_mass_export_tsv: QBox<SlotOfBool>,
@@ -119,6 +121,7 @@ impl PackFileContentsSlots {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) -> Self {
 
         // Slot to open the selected PackedFile as a preview.
@@ -127,9 +130,10 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move || {
+            dependencies_ui,
+            references_ui => move || {
             info!("PackedFile opened as Preview By Slot");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, true, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, true, false, DataSource::PackFile);
         }));
 
         // Slot to open the selected PackedFile as a permanent view.
@@ -138,9 +142,10 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move || {
+            dependencies_ui,
+            references_ui => move || {
             info!("PackedFile opened as Full By Slot");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, false, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, false, DataSource::PackFile);
         }));
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
@@ -417,6 +422,13 @@ impl PackFileContentsSlots {
                     },
                 }
 
+                // If there is anything selected, we can generate missing loc data.
+                if files > 0 || folders > 0 {
+                    pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(true);
+                } else {
+                    pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(false);
+                }
+
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
                 let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(false));
                 let response = CentralCommand::recv(&receiver);
@@ -632,7 +644,8 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move |_| {
+            dependencies_ui,
+            references_ui => move |_| {
                 info!("Triggering `Add From PackFile` By Slot");
 
                 // Create the FileDialog to get the PackFile to open, configure it and run it.
@@ -661,7 +674,7 @@ impl PackFileContentsSlots {
 
                     app_ui.main_window.set_enabled(false);
                     let fake_path = vec![RESERVED_NAME_EXTRA_PACKFILE.to_owned(), path_str];
-                    AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(fake_path), false, false, DataSource::ExternalFile);
+                    AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(fake_path), false, false, DataSource::ExternalFile);
                     app_ui.main_window.set_enabled(true);
                 }
             }
@@ -928,9 +941,10 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move |_| {
+            dependencies_ui,
+            references_ui => move |_| {
             info!("Triggering `Open Dependency Manager` By Slot");
-            AppUI::open_dependency_manager(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+            AppUI::open_dependency_manager(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
         }));
 
         // What happens when we trigger the "Open Containing Folder" Action.
@@ -951,9 +965,10 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move |_| {
+            dependencies_ui,
+            references_ui => move |_| {
             info!("Triggering `Open In External Program` By Slot");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, false, true, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, true, DataSource::PackFile);
         }));
 
         let contextual_menu_open_packfile_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
@@ -969,9 +984,10 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move |_| {
+            dependencies_ui,
+            references_ui => move |_| {
             info!("Triggering `Open Notes` By Slot");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(vec![RESERVED_NAME_NOTES.to_owned()]), false, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(vec![RESERVED_NAME_NOTES.to_owned()]), false, false, DataSource::PackFile);
         }));
 
         // What happens when we trigger the "Merge Tables" action in the Contextual Menu.
@@ -1118,6 +1134,26 @@ impl PackFileContentsSlots {
             }
         }));
 
+        // What happens when we trigger the "Update Table" action in the Contextual Menu.
+        let contextual_menu_generate_missing_loc_data = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+            info!("Triggering `Generate Loc Data` By Slot");
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::GenerateMissingLocData);
+            let response = CentralCommand::recv(&receiver);
+            match response {
+                Response::VecString(path_to_add) => {
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(path_to_add.to_vec()); 1]), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(path_to_add.to_vec()); 1]), DataSource::PackFile);
+                    UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                }
+
+                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+        }));
+
         // What happens when we trigger the "Mass-Import TSV" Action.
         //
         // TODO: Make it so the name of the table is split off when importing keeping the original name.
@@ -1258,6 +1294,7 @@ impl PackFileContentsSlots {
 
             contextual_menu_tables_merge_tables,
             contextual_menu_tables_update_table,
+            contextual_menu_generate_missing_loc_data,
 
             contextual_menu_mass_import_tsv,
             contextual_menu_mass_export_tsv,

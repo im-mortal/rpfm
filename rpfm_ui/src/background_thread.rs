@@ -18,11 +18,12 @@ use crossbeam::channel::Sender;
 use log::info;
 use open::that_in_background;
 use rayon::prelude::*;
+use rpfm_lib::games::{LUA_REPO, LUA_BRANCH, LUA_REMOTE};
 use uuid::Uuid;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::temp_dir;
-use std::fs::File;
+use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::thread;
@@ -34,6 +35,7 @@ use rpfm_lib::common::*;
 use rpfm_lib::diagnostics::Diagnostics;
 use rpfm_lib::dependencies::{Dependencies, DependenciesInfo};
 use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::git_integration::GitIntegration;
 use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::packedfile::*;
 use rpfm_lib::packedfile::animpack::AnimPack;
@@ -1118,6 +1120,20 @@ pub fn background_loop() {
                 }
             }
 
+            // When we want to update our lua setup...
+            Command::UpdateLuaAutogen => {
+                match get_lua_autogen_path() {
+                    Ok(local_path) => {
+                        let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
+                        match git_integration.update_repo() {
+                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        }
+                    },
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
             // When we want to update our program...
             Command::UpdateMainProgram => {
                 match rpfm_lib::updater::update_main_program() {
@@ -1143,7 +1159,7 @@ pub fn background_loop() {
                     let mut diag = Diagnostics::default();
                     if pack_file_decoded.get_pfh_file_type() == PFHFileType::Mod ||
                         pack_file_decoded.get_pfh_file_type() == PFHFileType::Movie {
-                        diag.check(&pack_file_decoded, &dependencies);
+                        diag.check(&pack_file_decoded, &mut dependencies);
                     }
                     CentralCommand::send_back(&sender, Response::Diagnostics(diag));
                 }));
@@ -1151,7 +1167,7 @@ pub fn background_loop() {
 
             // In case we want to "Open one or more PackFiles"...
             Command::DiagnosticsUpdate((mut diagnostics, path_types)) => {
-                diagnostics.update(&pack_file_decoded, &path_types, &dependencies);
+                diagnostics.update(&pack_file_decoded, &path_types, &mut dependencies);
                 let packed_files_info = diagnostics.get_update_paths_packed_file_info(&pack_file_decoded, &path_types);
                 CentralCommand::send_back(&sender, Response::DiagnosticsVecPackedFileInfo(diagnostics, packed_files_info));
             }
@@ -1279,6 +1295,69 @@ pub fn background_loop() {
                 if !found {
                     CentralCommand::send_back(&sender, Response::Error(ErrorKind::GenericHTMLError(tr("source_data_for_field_not_found")).into()));
                 }
+            },
+
+            Command::SearchReferences(reference_map, value) => {
+                let paths = reference_map.keys().map(|x| PathType::Folder(vec!["db".to_owned(), x.to_owned()])).collect::<Vec<PathType>>();
+                let packed_files = pack_file_decoded.get_ref_packed_files_by_path_type_unicased(&paths);
+
+                let mut references: Vec<(DataSource, Vec<String>, String, usize, usize)> = vec![];
+
+                // Pass for local tables.
+                for (table_name, columns) in &reference_map {
+                    for packed_file in &packed_files {
+                        if &packed_file.get_path()[1] == table_name {
+                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.get_decoded_from_memory() {
+                                for column_name in columns {
+                                    if let Some((column_index, row_indexes)) = data.get_ref_table().get_location_of_reference_data(column_name, &value) {
+                                        for row_index in &row_indexes {
+                                            references.push((DataSource::PackFile, packed_file.get_path().to_vec(), column_name.to_owned(), column_index, *row_index));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Pass for parent tables.
+                for (table_name, columns) in &reference_map {
+                    if let Ok(tables) = dependencies.get_db_tables_with_path_from_cache(table_name, false, true) {
+                        references.append(&mut tables.par_iter().map(|(path, table)| {
+                            let mut references = vec![];
+                            for column_name in columns {
+                                if let Some((column_index, row_indexes)) = table.get_ref_table().get_location_of_reference_data(column_name, &value) {
+                                    for row_index in &row_indexes {
+                                        references.push((DataSource::ParentFiles, path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>(), column_name.to_owned(), column_index, *row_index));
+                                    }
+                                }
+                            }
+
+
+                            references
+                        }).flatten().collect());
+                    }
+                }
+
+                // Pass for vanilla tables.
+                for (table_name, columns) in &reference_map {
+                    if let Ok(tables) = dependencies.get_db_tables_with_path_from_cache(table_name, true, false) {
+                        references.append(&mut tables.par_iter().map(|(path, table)| {
+                            let mut references = vec![];
+                            for column_name in columns {
+                                if let Some((column_index, row_indexes)) = table.get_ref_table().get_location_of_reference_data(column_name, &value) {
+                                    for row_index in &row_indexes {
+                                        references.push((DataSource::GameFiles, path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>(), column_name.to_owned(), column_index, *row_index));
+                                    }
+                                }
+                            }
+
+                            references
+                        }).flatten().collect());
+                    }
+                }
+
+                CentralCommand::send_back(&sender, Response::VecDataSourceVecStringStringUsizeUsize(references));
             },
 
             Command::GoToLoc(loc_key) => {
@@ -1538,9 +1617,156 @@ pub fn background_loop() {
                 }
             }
 
+            Command::GenerateMissingLocData => {
+                match &*SCHEMA.read().unwrap() {
+                    Some(schema) => {
+                        match pack_file_decoded.generate_missing_loc_data(schema) {
+                            Ok(path) => CentralCommand::send_back(&sender, Response::VecString(path)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        }
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())),
+                }
+            }
+
+            // Initialize the folder for a MyMod, including the folder structure it needs.
+            Command::InitializeMyModFolder(mod_name, mod_game)  => {
+                match SETTINGS.read().unwrap().paths["mymods_base_path"].clone() {
+                    Some(mut mymod_path) => {
+                        mymod_path.push(&mod_game);
+
+                        // Just in case the folder doesn't exist, we try to create it.
+                        if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
+                            CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOCreateAssetFolder.into()));
+                            continue;
+                        }
+
+                        // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
+                        mymod_path.push(&mod_name);
+                        if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
+                            CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOCreateNestedAssetFolder(mymod_path.to_string_lossy().to_string()).into()));
+                            continue;
+                        };
+
+                        // Create a repo inside the MyMod's folder.
+                        if !SETTINGS.read().unwrap().settings_bool["disable_mymod_automatic_git_repo"] {
+                            let git_integration = GitIntegration::new(&mymod_path, "", "", "");
+                            if let Err(error) = git_integration.init() {
+                                CentralCommand::send_back(&sender, Response::Error(From::from(error)));
+                                continue
+                            }
+                        }
+
+                        // If the tw_autogen supports the game, create the vscode and sublime configs for lua mods.
+                        if !SETTINGS.read().unwrap().settings_bool["disable_mymod_automatic_configs"] {
+                            if let Some(lua_autogen_folder) = GAME_SELECTED.read().unwrap().get_game_lua_autogen_path() {
+                                let lua_autogen_folder = lua_autogen_folder.replace("\\", "/");
+
+                                let mut vscode_config_path = mymod_path.to_owned();
+                                vscode_config_path.push(".vscode");
+
+                                if DirBuilder::new().recursive(true).create(&vscode_config_path).is_err() {
+                                    CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOCreateNestedAssetFolder(mymod_path.to_string_lossy().to_string()).into()));
+                                    continue;
+                                };
+
+                                // Prepare both config files.
+                                let mut sublime_config_path = mymod_path.to_owned();
+                                sublime_config_path.push(format!("{}.sublime-project", mymod_path.file_name().unwrap().to_string_lossy()));
+
+                                let mut vscode_extensions_path_file = vscode_config_path.to_owned();
+                                vscode_extensions_path_file.push("extensions.json");
+
+                                let mut vscode_config_path_file = vscode_config_path.to_owned();
+                                vscode_config_path_file.push("settings.json");
+
+                                if let Ok(file) = File::create(vscode_extensions_path_file) {
+                                    let mut file = BufWriter::new(file);
+                                    let _ = file.write_all("
+{
+    \"recommendations\": [
+        \"sumneko.lua\",
+        \"formulahendry.code-runner\"
+    ],
+}".as_bytes());
+                                }
+
+                                if let Ok(file) = File::create(vscode_config_path_file) {
+                                    let mut file = BufWriter::new(file);
+                                    let _ = file.write_all(format!("
+{{
+    \"Lua.workspace.library\": [
+        \"{folder}/global/\",
+        \"{folder}/campaign/\",
+        \"{folder}/frontend/\",
+        \"{folder}/battle/\"
+    ],
+    \"Lua.runtime.version\": \"Lua 5.1\",
+    \"Lua.completion.autoRequire\": false,
+    \"Lua.workspace.preloadFileSize\": 1500,
+    \"Lua.workspace.ignoreSubmodules\": false,
+    \"Lua.diagnostics.workspaceDelay\": 500,
+    \"Lua.diagnostics.workspaceRate\": 40,
+    \"Lua.diagnostics.disable\": [
+        \"lowercase-global\",
+        \"trailing-space\"
+    ],
+    \"Lua.hint.setType\": true,
+    \"Lua.workspace.ignoreDir\": [
+        \".vscode\",
+        \".git\"
+    ]
+}}", folder = lua_autogen_folder).as_bytes());
+                                }
+
+                                if let Ok(file) = File::create(sublime_config_path) {
+                                    let mut file = BufWriter::new(file);
+                                    let _ = file.write_all(format!("
+{{
+    \"folders\":
+    [
+        {{
+            \"path\": \".\"
+        }}
+    ],
+    \"settings\": {{
+        \"Lua.workspace.library\": [
+            \"{folder}/global/\",
+            \"{folder}/campaign/\",
+            \"{folder}/frontend/\",
+            \"{folder}/battle/\"
+        ],
+        \"Lua.runtime.version\": \"Lua 5.1\",
+        \"Lua.completion.autoRequire\": false,
+        \"Lua.workspace.preloadFileSize\": 1500,
+        \"Lua.workspace.ignoreSubmodules\": false,
+        \"Lua.diagnostics.workspaceDelay\": 500,
+        \"Lua.diagnostics.workspaceRate\": 40,
+        \"Lua.diagnostics.disable\": [
+            \"lowercase-global\",
+            \"trailing-space\"
+        ],
+        \"Lua.hint.setType\": true,
+        \"Lua.workspace.ignoreDir\": [
+            \".vscode\",
+            \".git\"
+        ],
+    }}
+}}", folder = lua_autogen_folder).as_bytes());
+                                }
+                            }
+                        }
+
+                        // Return the name of the MyMod Pack.
+                        mymod_path.set_extension("pack");
+                        CentralCommand::send_back(&sender, Response::PathBuf(mymod_path));
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::MyModPathNotConfigured.into())),
+                }
+            }
 
             // These two belong to the network thread, not to this one!!!!
-            Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates | Command::CheckLuaAutogenUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
     }
 }

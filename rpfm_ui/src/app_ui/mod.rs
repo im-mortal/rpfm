@@ -147,6 +147,7 @@ pub struct AppUI {
     pub view_toggle_global_search_panel: QPtr<QAction>,
     pub view_toggle_diagnostics_panel: QPtr<QAction>,
     pub view_toggle_dependencies_panel: QPtr<QAction>,
+    pub view_toggle_references_panel: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `Game Selected` menu.
@@ -241,6 +242,7 @@ pub struct AppUI {
     pub about_check_updates: QPtr<QAction>,
     pub about_check_schema_updates: QPtr<QAction>,
     pub about_check_message_updates: QPtr<QAction>,
+    pub about_check_lua_autogen_updates: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // "Debug" menu.
@@ -482,11 +484,13 @@ impl AppUI {
         let view_toggle_global_search_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_global_search_panel"));
         let view_toggle_diagnostics_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_diagnostics_panel"));
         let view_toggle_dependencies_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_dependencies_panel"));
+        let view_toggle_references_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_references_panel"));
 
         view_toggle_packfile_contents.set_checkable(true);
         view_toggle_global_search_panel.set_checkable(true);
         view_toggle_diagnostics_panel.set_checkable(true);
         view_toggle_dependencies_panel.set_checkable(true);
+        view_toggle_references_panel.set_checkable(true);
 
         //-----------------------------------------------//
         // `Game Selected` Menu.
@@ -624,6 +628,7 @@ impl AppUI {
         let about_check_updates = menu_bar_about.add_action_q_string(&qtr("about_check_updates"));
         let about_check_schema_updates = menu_bar_about.add_action_q_string(&qtr("about_check_schema_updates"));
         let about_check_message_updates = menu_bar_about.add_action_q_string(&qtr("about_check_message_updates"));
+        let about_check_lua_autogen_updates = menu_bar_about.add_action_q_string(&qtr("about_check_lua_autogen_updates"));
 
         //-----------------------------------------------//
         // `Debug` Menu.
@@ -729,6 +734,7 @@ impl AppUI {
             view_toggle_global_search_panel,
             view_toggle_diagnostics_panel,
             view_toggle_dependencies_panel,
+            view_toggle_references_panel,
 
             //-------------------------------------------------------------------------------//
             // "Game Selected" menu.
@@ -823,6 +829,7 @@ impl AppUI {
             about_check_updates,
             about_check_schema_updates,
             about_check_message_updates,
+            about_check_lua_autogen_updates,
 
             //-------------------------------------------------------------------------------//
             // "Debug" menu.

@@ -108,11 +108,14 @@ pub struct SettingsUI {
     pub extra_network_check_updates_on_start_label: QBox<QLabel>,
     pub extra_network_check_schema_updates_on_start_label: QBox<QLabel>,
     pub extra_network_check_message_updates_on_start_label: QBox<QLabel>,
+    pub extra_network_check_lua_autogen_updates_on_start_label: QBox<QLabel>,
     pub extra_packfile_allow_editing_of_ca_packfiles_label: QBox<QLabel>,
     pub extra_packfile_optimize_not_renamed_packedfiles_label: QBox<QLabel>,
     pub extra_packfile_use_lazy_loading_label: QBox<QLabel>,
     pub extra_packfile_disable_uuid_regeneration_on_db_tables_label: QBox<QLabel>,
     pub extra_packfile_disable_file_previews_label: QBox<QLabel>,
+    pub extra_packfile_disable_mymod_automatic_git_repo_label: QBox<QLabel>,
+    pub extra_packfile_disable_mymod_automatic_configs_label: QBox<QLabel>,
     pub ui_global_use_dark_theme_label: QBox<QLabel>,
     pub ui_window_start_maximized_label: QBox<QLabel>,
     pub ui_window_hide_background_icon_label: QBox<QLabel>,
@@ -127,11 +130,14 @@ pub struct SettingsUI {
     pub extra_network_check_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_network_check_schema_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_network_check_message_updates_on_start_checkbox: QBox<QCheckBox>,
+    pub extra_network_check_lua_autogen_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_packfile_allow_editing_of_ca_packfiles_checkbox: QBox<QCheckBox>,
     pub extra_packfile_optimize_not_renamed_packedfiles_checkbox: QBox<QCheckBox>,
     pub extra_packfile_use_lazy_loading_checkbox: QBox<QCheckBox>,
     pub extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox: QBox<QCheckBox>,
     pub extra_packfile_disable_file_previews_checkbox: QBox<QCheckBox>,
+    pub extra_packfile_disable_mymod_automatic_git_repo_checkbox: QBox<QCheckBox>,
+    pub extra_packfile_disable_mymod_automatic_configs_checkbox: QBox<QCheckBox>,
     pub ui_global_use_dark_theme_checkbox: QBox<QCheckBox>,
     pub ui_window_start_maximized_checkbox: QBox<QCheckBox>,
     pub ui_window_hide_background_icon_checkbox: QBox<QCheckBox>,
@@ -195,6 +201,7 @@ pub struct SettingsUI {
     pub debug_colour_dark_local_tip_button: QBox<QPushButton>,
     pub debug_colour_dark_remote_tip_button: QBox<QPushButton>,
 
+    pub debug_clear_dependencies_cache_folder_button: QBox<QPushButton>,
     pub debug_clear_autosave_folder_button: QBox<QPushButton>,
     pub debug_clear_schema_folder_button: QBox<QPushButton>,
     pub debug_clear_layout_settings_button: QBox<QPushButton>,
@@ -415,9 +422,11 @@ impl SettingsUI {
         let extra_network_check_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_updates_on_start"), &general_frame);
         let extra_network_check_schema_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_schema_updates_on_start"), &general_frame);
         let extra_network_check_message_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_message_updates_on_start"), &general_frame);
+        let extra_network_check_lua_autogen_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_lua_autogen_updates_on_start"), &general_frame);
         let extra_network_check_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
         let extra_network_check_schema_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
         let extra_network_check_message_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
+        let extra_network_check_lua_autogen_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
 
         // Behavior settings.
         let extra_packfile_allow_editing_of_ca_packfiles_label = QLabel::from_q_string_q_widget(&qtr("settings_allow_editing_of_ca_packfiles"), &general_frame);
@@ -428,6 +437,12 @@ impl SettingsUI {
 
         let extra_packfile_disable_file_previews_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_file_previews"), &general_frame);
         let extra_packfile_disable_file_previews_checkbox = QCheckBox::from_q_widget(&general_frame);
+
+        let extra_packfile_disable_mymod_automatic_git_repo_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_mymod_automatic_git_repo"), &general_frame);
+        let extra_packfile_disable_mymod_automatic_git_repo_checkbox = QCheckBox::from_q_widget(&general_frame);
+
+        let extra_packfile_disable_mymod_automatic_configs_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_mymod_automatic_configs"), &general_frame);
+        let extra_packfile_disable_mymod_automatic_configs_checkbox = QCheckBox::from_q_widget(&general_frame);
 
         let ui_global_use_dark_theme_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_dark_theme"), &general_frame);
         let ui_global_use_dark_theme_checkbox = QCheckBox::from_q_widget(&general_frame);
@@ -471,29 +486,38 @@ impl SettingsUI {
         general_grid.add_widget_5a(&extra_network_check_message_updates_on_start_label, 7, 0, 1, 1);
         general_grid.add_widget_5a(&extra_network_check_message_updates_on_start_checkbox, 7, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_label, 8, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_checkbox, 8, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_lua_autogen_updates_on_start_label, 8, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_lua_autogen_updates_on_start_checkbox, 8, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_label, 9, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_checkbox, 9, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_label, 9, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_checkbox, 9, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_disable_file_previews_label, 10, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_disable_file_previews_checkbox, 10, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_label, 10, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_checkbox, 10, 1, 1, 1);
 
-        general_grid.add_widget_5a(&ui_global_use_dark_theme_label, 13, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_global_use_dark_theme_checkbox, 13, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_disable_file_previews_label, 11, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_disable_file_previews_checkbox, 11, 1, 1, 1);
 
-        general_grid.add_widget_5a(&ui_window_start_maximized_label, 14, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_window_start_maximized_checkbox, 14, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_disable_mymod_automatic_git_repo_label, 12, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_disable_mymod_automatic_git_repo_checkbox, 12, 1, 1, 1);
 
-        general_grid.add_widget_5a(&ui_window_hide_background_icon_label, 15, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_window_hide_background_icon_checkbox, 15, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_disable_mymod_automatic_configs_label, 13, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_disable_mymod_automatic_configs_checkbox, 13, 1, 1, 1);
+
+        general_grid.add_widget_5a(&ui_global_use_dark_theme_label, 14, 0, 1, 1);
+        general_grid.add_widget_5a(&ui_global_use_dark_theme_checkbox, 14, 1, 1, 1);
+
+        general_grid.add_widget_5a(&ui_window_start_maximized_label, 15, 0, 1, 1);
+        general_grid.add_widget_5a(&ui_window_start_maximized_checkbox, 15, 1, 1, 1);
+
+        general_grid.add_widget_5a(&ui_window_hide_background_icon_label, 16, 0, 1, 1);
+        general_grid.add_widget_5a(&ui_window_hide_background_icon_checkbox, 16, 1, 1, 1);
 
         //general_grid.add_widget_5a(&general_packfile_treeview_resize_to_fit_label, 14, 0, 1, 1);
         //general_grid.add_widget_5a(&general_packfile_treeview_resize_to_fit_checkbox, 14, 1, 1, 1);
 
-        general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_label, 16, 0, 1, 1);
-        general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_checkbox, 16, 1, 1, 1);
+        general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_label, 17, 0, 1, 1);
+        general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_checkbox, 17, 1, 1, 1);
 
         settings_grid.add_widget_5a(&general_frame, 2, 0, 2, 1);
 
@@ -639,6 +663,7 @@ impl SettingsUI {
         let extra_packfile_use_lazy_loading_label = QLabel::from_q_string_q_widget(&qtr("settings_use_lazy_loading"), &debug_frame);
         let extra_packfile_use_lazy_loading_checkbox = QCheckBox::from_q_widget(&debug_frame);
 
+        let debug_clear_dependencies_cache_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_dependencies_cache_folder"), &debug_frame);
         let debug_clear_autosave_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_autosave_folder"), &debug_frame);
         let debug_clear_schema_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_schema_folder"), &debug_frame);
         let debug_clear_layout_settings_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_layout_settings"), &debug_frame);
@@ -691,6 +716,7 @@ impl SettingsUI {
         debug_grid.add_widget_5a(&debug_colour_dark_local_tip_button, 71, 2, 1, 1);
         debug_grid.add_widget_5a(&debug_colour_dark_remote_tip_button, 72, 2, 1, 1);
 
+        debug_grid.add_widget_5a(&debug_clear_dependencies_cache_folder_button, 84, 0, 1, 3);
         debug_grid.add_widget_5a(&debug_clear_autosave_folder_button, 85, 0, 1, 3);
         debug_grid.add_widget_5a(&debug_clear_schema_folder_button, 86, 0, 1, 3);
         debug_grid.add_widget_5a(&debug_clear_layout_settings_button, 87, 0, 1, 3);
@@ -787,11 +813,14 @@ impl SettingsUI {
             extra_network_check_updates_on_start_label,
             extra_network_check_schema_updates_on_start_label,
             extra_network_check_message_updates_on_start_label,
+            extra_network_check_lua_autogen_updates_on_start_label,
             extra_packfile_allow_editing_of_ca_packfiles_label,
             extra_packfile_optimize_not_renamed_packedfiles_label,
             extra_packfile_use_lazy_loading_label,
             extra_packfile_disable_uuid_regeneration_on_db_tables_label,
             extra_packfile_disable_file_previews_label,
+            extra_packfile_disable_mymod_automatic_git_repo_label,
+            extra_packfile_disable_mymod_automatic_configs_label,
             ui_global_use_dark_theme_label,
             ui_window_start_maximized_label,
             ui_window_hide_background_icon_label,
@@ -806,11 +835,14 @@ impl SettingsUI {
             extra_network_check_updates_on_start_checkbox,
             extra_network_check_schema_updates_on_start_checkbox,
             extra_network_check_message_updates_on_start_checkbox,
+            extra_network_check_lua_autogen_updates_on_start_checkbox,
             extra_packfile_allow_editing_of_ca_packfiles_checkbox,
             extra_packfile_optimize_not_renamed_packedfiles_checkbox,
             extra_packfile_use_lazy_loading_checkbox,
             extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox,
             extra_packfile_disable_file_previews_checkbox,
+            extra_packfile_disable_mymod_automatic_git_repo_checkbox,
+            extra_packfile_disable_mymod_automatic_configs_checkbox,
             ui_global_use_dark_theme_checkbox,
             ui_window_start_maximized_checkbox,
             ui_window_hide_background_icon_checkbox,
@@ -874,6 +906,7 @@ impl SettingsUI {
             debug_colour_dark_local_tip_button,
             debug_colour_dark_remote_tip_button,
 
+            debug_clear_dependencies_cache_folder_button,
             debug_clear_autosave_folder_button,
             debug_clear_schema_folder_button,
             debug_clear_layout_settings_button,
@@ -959,11 +992,14 @@ impl SettingsUI {
         self.extra_network_check_updates_on_start_checkbox.set_checked(settings.settings_bool["check_updates_on_start"]);
         self.extra_network_check_schema_updates_on_start_checkbox.set_checked(settings.settings_bool["check_schema_updates_on_start"]);
         self.extra_network_check_message_updates_on_start_checkbox.set_checked(settings.settings_bool["check_message_updates_on_start"]);
+        self.extra_network_check_lua_autogen_updates_on_start_checkbox.set_checked(settings.settings_bool["check_lua_autogen_updates_on_start"]);
         self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_checked(settings.settings_bool["allow_editing_of_ca_packfiles"]);
         self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_checked(settings.settings_bool["optimize_not_renamed_packedfiles"]);
         self.extra_packfile_use_lazy_loading_checkbox.set_checked(settings.settings_bool["use_lazy_loading"]);
         self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(settings.settings_bool["disable_uuid_regeneration_on_db_tables"]);
         self.extra_packfile_disable_file_previews_checkbox.set_checked(settings.settings_bool["disable_file_previews"]);
+        self.extra_packfile_disable_mymod_automatic_git_repo_checkbox.set_checked(settings.settings_bool["disable_mymod_automatic_git_repo"]);
+        self.extra_packfile_disable_mymod_automatic_configs_checkbox.set_checked(settings.settings_bool["disable_mymod_automatic_configs"]);
         self.general_packfile_treeview_resize_to_fit_checkbox.set_checked(settings.settings_bool["packfile_treeview_resize_to_fit"]);
         self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_checked(settings.settings_bool["expand_treeview_when_adding_items"]);
 
@@ -1102,11 +1138,14 @@ impl SettingsUI {
         settings.settings_bool.insert("check_updates_on_start".to_owned(), self.extra_network_check_updates_on_start_checkbox.is_checked());
         settings.settings_bool.insert("check_schema_updates_on_start".to_owned(), self.extra_network_check_schema_updates_on_start_checkbox.is_checked());
         settings.settings_bool.insert("check_message_updates_on_start".to_owned(), self.extra_network_check_message_updates_on_start_checkbox.is_checked());
+        settings.settings_bool.insert("check_lua_autogen_updates_on_start".to_owned(), self.extra_network_check_lua_autogen_updates_on_start_checkbox.is_checked());
         settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.is_checked());
         settings.settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.is_checked());
         settings.settings_bool.insert("use_lazy_loading".to_owned(), self.extra_packfile_use_lazy_loading_checkbox.is_checked());
         settings.settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.is_checked());
         settings.settings_bool.insert("disable_file_previews".to_owned(), self.extra_packfile_disable_file_previews_checkbox.is_checked());
+        settings.settings_bool.insert("disable_mymod_automatic_git_repo".to_owned(), self.extra_packfile_disable_mymod_automatic_git_repo_checkbox.is_checked());
+        settings.settings_bool.insert("disable_mymod_automatic_configs".to_owned(), self.extra_packfile_disable_mymod_automatic_configs_checkbox.is_checked());
         settings.settings_bool.insert("packfile_treeview_resize_to_fit".to_owned(), self.general_packfile_treeview_resize_to_fit_checkbox.is_checked());
         settings.settings_bool.insert("expand_treeview_when_adding_items".to_owned(), self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.is_checked());
 

@@ -68,6 +68,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.view_toggle_global_search_panel.toggled().connect(&slots.view_toggle_global_search_panel);
     app_ui.view_toggle_diagnostics_panel.toggled().connect(&slots.view_toggle_diagnostics_panel);
     app_ui.view_toggle_dependencies_panel.toggled().connect(&slots.view_toggle_dependencies_panel);
+    app_ui.view_toggle_references_panel.toggled().connect(&slots.view_toggle_references_panel);
 
     //-----------------------------------------------//
     // `Game Selected` menu connections.
@@ -139,6 +140,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.about_check_updates.triggered().connect(&slots.about_check_updates);
     app_ui.about_check_schema_updates.triggered().connect(&slots.about_check_schema_updates);
     app_ui.about_check_message_updates.triggered().connect(&slots.about_check_message_updates);
+    app_ui.about_check_lua_autogen_updates.triggered().connect(&slots.about_check_lua_autogen_updates);
 
     //-----------------------------------------------//
     // `Debug` menu connections.

@@ -46,9 +46,11 @@ use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
+use crate::packedfile::table::DecodedData;
 use crate::packedfile::table::db::DB;
 use crate::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use crate::packedfile::text::TextType;
+use crate::schema::Schema;
 
 mod compression;
 mod crypto;
@@ -1151,6 +1153,16 @@ impl PackFile {
         self.packed_files.par_iter().filter(|x| paths.contains(&UniCase::new(x.get_path().join("/")))).cloned().collect()
     }
 
+    /// This function returns a reference of all the `PackedFiles` in the provided paths, in a case insensitive manner.
+    pub fn get_ref_packed_files_by_paths_unicased(&self, paths: Vec<UniCase<String>>) -> Vec<&PackedFile> {
+        self.packed_files.par_iter().filter(|x| paths.contains(&UniCase::new(x.get_path().join("/")))).collect()
+    }
+
+    /// This function returns a mutable reference of all the `PackedFiles` in the provided paths, in a case insensitive manner.
+    pub fn get_ref_mut_packed_files_by_paths_unicased(&mut self, paths: Vec<UniCase<String>>) -> Vec<&mut PackedFile> {
+        self.packed_files.par_iter_mut().filter(|x| paths.contains(&UniCase::new(x.get_path().join("/")))).collect()
+    }
+
     /// This function returns a copy of all the `PackedFiles` starting with the provided path.
     pub fn get_packed_files_by_path_start(&self, path: &[String]) -> Vec<PackedFile> {
         self.packed_files.par_iter().filter(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).cloned().collect()
@@ -1170,12 +1182,36 @@ impl PackFile {
     pub fn get_packed_files_by_path_start_unicased(&self, path: UniCase<String>) -> Vec<PackedFile> {
         let path_provided_len = path.chars().count();
         self.packed_files.par_iter().filter(|x| {
-            if !path.is_empty() {
+            if !path.is_empty() && path.starts_with(&x.get_path()[0]) {
                 let path_str = x.get_path().join("/");
                 let path_len = path_str.chars().count();
                 path_len > path_provided_len && UniCase::new(&path_str[..path_provided_len]) == path
             } else { false }
         }).cloned().collect()
+    }
+
+    /// This function returns a reference of all the `PackedFiles` starting with the provided path, in a case insensitive manner.
+    pub fn get_ref_packed_files_by_path_start_unicased(&self, path: UniCase<String>) -> Vec<&PackedFile> {
+        let path_provided_len = path.chars().count();
+        self.packed_files.par_iter().filter(|x| {
+            if !path.is_empty() && path.starts_with(&x.get_path()[0]) {
+                let path_str = x.get_path().join("/");
+                let path_len = path_str.chars().count();
+                path_len > path_provided_len && UniCase::new(&path_str[..path_provided_len]) == path
+            } else { false }
+        }).collect()
+    }
+
+    /// This function returns a mutable reference of all the `PackedFiles` starting with the provided path, in a case insensitive manner.
+    pub fn get_ref_mut_packed_files_by_path_start_unicased(&mut self, path: UniCase<String>) -> Vec<&mut PackedFile> {
+        let path_provided_len = path.chars().count();
+        self.packed_files.par_iter_mut().filter(|x| {
+            if !path.is_empty() && path.starts_with(&x.get_path()[0]){
+                let path_str = x.get_path().join("/");
+                let path_len = path_str.chars().count();
+                path_len > path_provided_len && UniCase::new(&path_str[..path_provided_len]) == path
+            } else { false }
+        }).collect()
     }
 
     /// This function returns a copy of the paths of all the `PackedFiles` in the provided `PackFile` under the provided path.
@@ -1393,6 +1429,53 @@ impl PackFile {
             }).map(|path| self.get_packed_files_by_path_start_unicased(path))
             .flatten()
             .collect::<Vec<PackedFile>>());
+            packed_files
+        }
+    }
+
+    /// This function returns a reference of all the PackedFiles in the provided PathTypes, in a case insensitive manner.
+    pub fn get_ref_packed_files_by_path_type_unicased(&self, path_types: &[PathType]) -> Vec<&PackedFile> {
+
+        // Keep the PathTypes added so we can return them to the UI easily.
+        let path_types = PathType::dedup(path_types);
+
+        // As this can get very slow very quickly, we do here some... optimizations.
+        // First, we get if there are PackFiles or folders in our list of PathTypes.
+        let we_have_packfile = path_types.par_iter().any(|item| {
+            matches!(item, PathType::PackFile)
+        });
+
+        let we_have_folder = path_types.par_iter().any(|item| {
+            matches!(item, PathType::Folder(_))
+        });
+
+        // Then, if we have a PackFile,... just import all PackedFiles.
+        if we_have_packfile {
+            self.get_ref_packed_files_all()
+        }
+
+        // If we only have files, get all the files we have at once, then add them all together.
+        else if !we_have_folder {
+            let paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(UniCase::new(path.join("/"))) } else { None }
+            }).collect::<Vec<UniCase<String>>>();
+            self.get_ref_packed_files_by_paths_unicased(paths_files)
+        }
+
+        // Otherwise, we have a mix of Files and Folders (or folders only).
+        // In this case, we get all the individual files, then the ones inside folders.
+        // Then we merge them, and add all of them together.
+        else {
+            let paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(UniCase::new(path.join("/")))  } else { None }
+            }).collect::<Vec<UniCase<String>>>();
+            let mut packed_files = self.get_ref_packed_files_by_paths_unicased(paths_files);
+
+            packed_files.append(&mut path_types.par_iter().filter_map(|x| {
+                if let PathType::Folder(path) = x { Some(UniCase::new(path.join("/"))) } else { None }
+            }).map(|path| self.get_ref_packed_files_by_path_start_unicased(path))
+            .flatten()
+            .collect::<Vec<&PackedFile>>());
             packed_files
         }
     }
@@ -2111,6 +2194,79 @@ impl PackFile {
         Ok(files_to_delete)
     }
 
+    /// This function is used to generate all loc entries missing from a PackFile into a missing.loc file.
+    pub fn generate_missing_loc_data(&mut self, schema: &Schema) -> Result<Vec<String>> {
+
+        let db_tables = self.get_ref_packed_files_by_type(PackedFileType::DB, false);
+        let loc_tables = self.get_ref_packed_files_by_type(PackedFileType::Loc, false);
+        let mut missing_trads_file = Loc::new(schema.get_ref_last_definition_loc().unwrap());
+
+        db_tables.iter().for_each(|packed_file| {
+            if let DecodedPackedFile::DB(table) = packed_file.get_decoded_from_memory().unwrap() {
+                let definition = table.get_ref_definition();
+                if !definition.get_localised_fields().is_empty() && definition.get_fields_processed().iter().filter(|x| x.get_is_key()).count() > 1 {
+                    println!("{}, keys: {}", table.get_table_name_without_tables(), definition.get_fields_processed().iter().filter(|x| x.get_is_key()).count());
+                }
+            }
+        });
+
+        let loc_keys_from_memory = loc_tables.par_iter().filter_map(|packed_file| {
+            if let DecodedPackedFile::Loc(table) = packed_file.get_decoded_from_memory().unwrap() {
+                Some(table.get_ref_table_data().iter().filter_map(|x| {
+                    if let DecodedData::StringU16(data) = &x[0] {
+                        Some(data.as_str())
+                    } else {
+                        None
+                    }
+                }).collect::<HashSet<&str>>())
+            } else { None }
+        }).flatten().collect::<HashSet<&str>>();
+
+        let missing_trads_file_table_data = db_tables.par_iter().filter_map(|packed_file| {
+            if let DecodedPackedFile::DB(table) = packed_file.get_decoded_from_memory().unwrap() {
+                let definition = table.get_ref_definition();
+                let loc_fields = definition.get_localised_fields();
+                let processed_fields = definition.get_fields_processed();
+                if !loc_fields.is_empty() {
+                    let table_data = table.get_ref_table_data();
+                    let table_name = table.get_table_name_without_tables();
+
+                    // Get the keys, which may be concatenated. We get them IN THE ORDER THEY ARE IN THE BINARY FILE.
+                    let key_field_names = definition.get_ref_fields().iter().filter_map(|field| if field.get_is_key() { Some(field.get_name()) } else { None }).collect::<Vec<&str>>();
+                    let key_field_positions = key_field_names.iter().filter_map(|name| processed_fields.iter().position(|field| field.get_name() == *name)).collect::<Vec<usize>>();
+
+                    let mut new_rows = vec![];
+
+                    for row in table_data {
+                        for loc_field in loc_fields {
+                            let key = key_field_positions.iter().map(|pos| row[*pos].data_to_string()).join("");
+                            let loc_key = format!("{}_{}_{}", table_name, loc_field.get_name(), key);
+
+                            if loc_keys_from_memory.get(&*loc_key).is_none() {
+                                let mut new_row = missing_trads_file.get_new_row();
+                                new_row[0] = DecodedData::StringU16(loc_key);
+                                new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
+                                new_rows.push(new_row);
+                            }
+                        }
+                    }
+
+                    return Some(new_rows)
+                }
+            }
+            None
+        }).flatten().collect::<Vec<Vec<DecodedData>>>();
+
+        // Save the missing translations to a missing_locs.loc file.
+        let _ = missing_trads_file.set_table_data(&missing_trads_file_table_data);
+        if !missing_trads_file_table_data.is_empty() {
+            let packed_file = PackedFile::new_from_decoded(&DecodedPackedFile::Loc(missing_trads_file), &["text".to_owned(), "missing_locs.loc".to_owned()]);
+            self.add_packed_file(&packed_file, true)
+        } else {
+            Ok(vec![])
+        }
+    }
+
     /// This function is used to patch Warhammer Siege map packs so their AI actually works.
     ///
     /// This also removes the useless xml files left by Terry in the `PackFile`.
@@ -2561,7 +2717,9 @@ impl PackFile {
                         PFHFileType::Boot => boot_files.append(&mut pack.packed_files),
                         PFHFileType::Release => release_files.append(&mut pack.packed_files),
                         PFHFileType::Patch => patch_files.append(&mut pack.packed_files),
-                        PFHFileType::Mod => mod_files.append(&mut pack.packed_files),
+                        PFHFileType::Mod => if !ignore_mods {
+                            mod_files.append(&mut pack.packed_files)
+                        },
                         PFHFileType::Movie => movie_files.append(&mut pack.packed_files),
 
                         // If we find an unknown one, return an error.
@@ -2586,9 +2744,11 @@ impl PackFile {
             patch_files.reverse();
             patch_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            mod_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
-            mod_files.reverse();
-            mod_files.dedup_by(|x, y| x.get_path() == y.get_path());
+            if !ignore_mods {
+                mod_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+                mod_files.reverse();
+                mod_files.dedup_by(|x, y| x.get_path() == y.get_path());
+            }
 
             movie_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
             movie_files.reverse();
@@ -2597,7 +2757,11 @@ impl PackFile {
             pack_file.add_packed_files(&(boot_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
             pack_file.add_packed_files(&(release_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
             pack_file.add_packed_files(&(patch_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
-            pack_file.add_packed_files(&(mod_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
+
+            if !ignore_mods {
+                pack_file.add_packed_files(&(mod_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
+            }
+
             pack_file.add_packed_files(&(movie_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
 
             // Set it as type "Other(200)", so we can easily identify it as fake in other places.

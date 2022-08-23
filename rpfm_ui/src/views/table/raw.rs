@@ -95,6 +95,7 @@ impl TableView {
         self.context_menu_undo.set_enabled(false);
         self.context_menu_redo.set_enabled(false);
         self.context_menu_import_tsv.set_enabled(false);
+        self.context_menu_find_references.set_enabled(false);
         self.context_menu_cascade_edition.set_enabled(false);
         self.context_menu_patch_column.set_enabled(true);
         self.smart_delete.set_enabled(false);
@@ -108,6 +109,7 @@ impl TableView {
             self.context_menu_copy_as_lua_table.set_enabled(true);
 
             if *self.packed_file_type == PackedFileType::DB {
+                self.context_menu_find_references.set_enabled(true);
                 self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(true));
             } else {
                 self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
@@ -222,10 +224,7 @@ impl TableView {
     pub unsafe fn reset_selection(&self) {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         let mut items_reverted = 0;
         for index in &indexes_sorted {
@@ -274,8 +273,7 @@ impl TableView {
 
             // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
             let indexes = self.table_view_primary.selection_model().selection().indexes();
-            let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-            sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+            let indexes_sorted = get_visible_selection_sorted(&indexes, &self.get_mut_ptr_table_view_primary());
 
             let mut real_cells = vec![];
             let mut values = vec![];
@@ -346,8 +344,7 @@ impl TableView {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.get_mut_ptr_table_view_primary());
 
         // Get the initial value of the dialog.
         let initial_value = if let Some(first) = indexes_sorted.first() {
@@ -383,10 +380,7 @@ impl TableView {
     pub unsafe fn copy_selection(&self) {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         // Create a string to keep all the values in a TSV format (x\tx\tx) and populate it.
         let mut copy = String::new();
@@ -431,10 +425,7 @@ impl TableView {
     pub unsafe fn copy_selection_as_lua_table(&self) {
 
         // Get the selection sorted visually.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         // Split the indexes in two groups: those who have a key column selected and those who haven't.
         // Keep in mind this doesn't check what key column we have selected.
@@ -482,8 +473,7 @@ impl TableView {
 
         // Get the current selection and his, visually speaking, first item (top-left).
         let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.get_mut_ptr_table_view_primary());
 
         // If nothing is selected, got back to where you came from.
         if indexes_sorted.is_empty() { return }
@@ -1216,10 +1206,7 @@ impl TableView {
     pub unsafe fn smart_delete(&self, delete_all_rows: bool, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         if delete_all_rows {
             let mut rows_to_delete: Vec<i32> = indexes_sorted.iter().filter_map(|x| if x.is_valid() { Some(x.row()) } else { None }).collect();
@@ -1402,6 +1389,16 @@ impl TableView {
                         }
                     },
 
+                    FieldType::ColourRGB => {
+                        if u32::from_str_radix(text, 16).is_ok() {
+                            if current_value != *text {
+                                self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
+                                changed_cells += 1;
+                                self.process_edition(self.table_model.item_from_index(real_cell));
+                            }
+                        }
+                    }
+
                     _ => {
                         if current_value != *text {
                             self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
@@ -1518,10 +1515,7 @@ impl TableView {
         let edited_table_name = if let Some(table_name) = self.get_ref_table_name() { table_name.to_lowercase() } else { return };
 
         // Get the selected indexes.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         // Ask the dialog to get the data needed for the replacing.
         if let Some(editions) = self.cascade_edition_dialog(&indexes) {
@@ -1674,10 +1668,7 @@ impl TableView {
         let edited_table_name = if let Some(table_name) = self.get_ref_table_name() { table_name.to_lowercase() } else { return Err(ErrorKind::DBTableIsNotADBTable.into()) };
 
         // Get the selected indexes.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         // Only works with a column selected.
         let columns: Vec<i32> = indexes.iter().map(|x| x.column()).sorted().dedup().collect();
@@ -1753,10 +1744,9 @@ impl TableView {
         Ok(())
     }
 
-    /// This function tries to open the source of a reference/loc key, if exits in the PackFile.
+    /// This function tries to open the source of a reference/loc key, if exists.
     ///
     /// If the source it's not found, it does nothing.
-    /// If the source is a read-only dependency, it does nothing yet.
     pub unsafe fn go_to_definition(
         &self,
         app_ui: &Rc<AppUI>,
@@ -1764,6 +1754,7 @@ impl TableView {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) -> Option<String> {
 
         let mut error_message = String::new();
@@ -1851,7 +1842,7 @@ impl TableView {
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, Some(path.to_vec()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_vec()), true, false, data_source);
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
@@ -1893,6 +1884,7 @@ impl TableView {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
         loc_column_name: &str
     ) -> Option<String> {
 
@@ -1914,11 +1906,11 @@ impl TableView {
                     table_name.to_owned().drain(..table_name.len() - 7).collect::<String>()
                 } else { return Some(tr("loc_key_not_found")) };
 
-                let key = if let Some(column) = self.get_ref_table_definition().get_fields_processed().iter().position(|x| (x.get_name() == "key" || x.get_name() == "id") && x.get_is_key()) {
-                    let row = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row();
-                    self.table_model.index_2a(row, column as i32).data_0a().to_string().to_std_string()
-                } else { return Some(tr("loc_key_not_found")) };
+                let table_definition = self.get_ref_table_definition();
+                let key_field_names = table_definition.get_ref_fields().iter().filter_map(|field| if field.get_is_key() { Some(field.get_name()) } else { None }).collect::<Vec<&str>>();
+                let key_field_positions = key_field_names.iter().filter_map(|name| table_definition.get_fields_processed().iter().position(|field| field.get_name() == *name)).collect::<Vec<usize>>();
 
+                let key = key_field_positions.iter().map(|column| self.table_model.index_2a(self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row(), *column as i32).data_0a().to_string().to_std_string()).join("");
                 let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);
 
                 // Then ask the backend to do the heavy work.
@@ -1962,7 +1954,7 @@ impl TableView {
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, Some(path.to_vec()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(path.to_vec()), true, false, data_source);
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();

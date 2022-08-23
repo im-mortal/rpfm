@@ -24,6 +24,7 @@ use rpfm_error::Error;
 
 use rpfm_lib::dependencies::DependenciesInfo;
 use rpfm_lib::diagnostics::Diagnostics;
+use rpfm_lib::git_integration::GitResponse;
 use rpfm_lib::global_search::GlobalSearch;
 use rpfm_lib::global_search::MatchHolder;
 use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
@@ -319,6 +320,9 @@ pub enum Command {
     /// This command is used to get the loc file/column/row of a key. Contains the loc key to search.
     GoToLoc(String),
 
+    /// This command is used for the Find References feature. Contains list of table/columns to search, and value to search.
+    SearchReferences(HashMap<String, Vec<String>>, String),
+
     /// This command is used to get the type of a PackedFile.
     GetPackedFileType(Vec<String>),
 
@@ -360,6 +364,18 @@ pub enum Command {
 
     /// This command is used to import a schema patch in the local schema patches.
     ImportSchemaPatch(SchemaPatch),
+
+    /// This command is used to generate all missing loc entries for the currently open PackFile.
+    GenerateMissingLocData,
+
+    /// This command is used to check for updates on the tw_autogen thing.
+    CheckLuaAutogenUpdates,
+
+    /// This command is used to update the tw_autogen thing.
+    UpdateLuaAutogen,
+
+    /// This command is used to initialize a MyMod Folder.
+    InitializeMyModFolder(String, String),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -496,6 +512,9 @@ pub enum Response {
     /// Response to return `DataSource, Vec<String>, usize, usize`.
     DataSourceVecStringUsizeUsize(DataSource, Vec<String>, usize, usize),
 
+    /// Response to return `Vec<(DataSource, Vec<String>, String, usize, usize)>`.
+    VecDataSourceVecStringStringUsizeUsize(Vec<(DataSource, Vec<String>, String, usize, usize)>),
+
     /// Response to return `Option<(String, String, String)>`.
     OptionStringStringString(Option<(String, String, String)>),
 
@@ -515,6 +534,7 @@ pub enum Response {
     DiagnosticsVecPackedFileInfo(Diagnostics, Vec<PackedFileInfo>),
     Definition(Definition),
     VecTipVecTip(Vec<Tip>, Vec<Tip>),
+    APIResponseGit(GitResponse),
 }
 
 //-------------------------------------------------------------------------------//
